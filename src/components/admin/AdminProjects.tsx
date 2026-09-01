@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const AdminProjects: React.FC = () => {
-  const { projects, addProject, updateProject, deleteProject, addToast } = useApp();
+  const { projects, addProject, updateProject, deleteProject, addToast, confirmAction } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,11 +30,13 @@ export const AdminProjects: React.FC = () => {
   const [status, setStatus] = useState<'Planning' | 'Ongoing' | 'Completed'>('Ongoing');
   const [image, setImage] = useState('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=800&q=80');
 
-  const filteredProjects = projects.filter(p => 
-    p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.projectLeader.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProjects = projects.filter(p => {
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return true;
+    return (p.title || '').toLowerCase().includes(q) ||
+           (p.category || '').toLowerCase().includes(q) ||
+           (p.projectLeader || '').toLowerCase().includes(q);
+  });
 
   const handleOpenCreate = () => {
     setEditingProject(null);
@@ -181,13 +183,27 @@ export const AdminProjects: React.FC = () => {
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
-                          if (confirm(`Delete project "${p.title}"?`)) {
-                            deleteProject(p.id);
-                            addToast(`Project deleted.`, 'info');
-                          }
+                          confirmAction({
+                            title: 'Delete Project',
+                            message: `Are you sure you want to delete the project "${p.title}"? All associated project progress and records will be removed.`,
+                            confirmText: 'Delete Project',
+                            cancelText: 'Cancel',
+                            variant: 'danger',
+                            itemDetails: {
+                              label: 'Project Details',
+                              value: p.title,
+                              subValue: `Category: ${p.category} • Leader: ${p.projectLeader}`
+                            },
+                            onConfirm: () => {
+                              deleteProject(p.id);
+                              addToast(`Project "${p.title}" deleted.`, 'info');
+                            }
+                          });
                         }}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                        title="Delete Project"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

@@ -16,7 +16,8 @@ import {
   Sparkles, 
   RotateCcw,
   Volume2,
-  VolumeX
+  VolumeX,
+  Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -27,7 +28,9 @@ export const AdminAttendance: React.FC = () => {
     members, 
     scanAttendanceQR, 
     manualCheckIn, 
-    addToast 
+    deleteAttendanceRecord,
+    addToast,
+    confirmAction
   } = useApp();
 
   const [selectedSessionId, setSelectedSessionId] = useState<string>(attendanceSessions[0]?.id || '');
@@ -130,7 +133,7 @@ export const AdminAttendance: React.FC = () => {
   };
 
   const filteredSearchMembers = manualMemberQuery.trim()
-    ? members.filter(m => m.fullName.toLowerCase().includes(manualMemberQuery.toLowerCase()) || m.memberId.toLowerCase().includes(manualMemberQuery.toLowerCase()))
+    ? members.filter(m => (m.fullName || '').toLowerCase().includes(manualMemberQuery.toLowerCase().trim()) || (m.memberId || '').toLowerCase().includes(manualMemberQuery.toLowerCase().trim()))
     : [];
 
   return (

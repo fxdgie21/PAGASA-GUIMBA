@@ -24,9 +24,11 @@ export const AnnouncementsPage: React.FC = () => {
   const filteredAnnouncements = announcements.filter(a => {
     if (!a.isPublished) return false;
     const matchesCat = selectedCategory === 'ALL' || a.category === selectedCategory;
-    const matchesSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          a.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          a.author.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return matchesCat;
+    const matchesSearch = (a.title || '').toLowerCase().includes(q) ||
+                          (a.content || '').toLowerCase().includes(q) ||
+                          (a.author || '').toLowerCase().includes(q);
     return matchesCat && matchesSearch;
   });
 

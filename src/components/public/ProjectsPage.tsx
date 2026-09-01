@@ -27,9 +27,11 @@ export const ProjectsPage: React.FC = () => {
 
   const filteredProjects = projects.filter(p => {
     const matchesCat = selectedCategory === 'ALL' || p.category === selectedCategory;
-    const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          p.projectLeader.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return matchesCat;
+    const matchesSearch = (p.title || '').toLowerCase().includes(q) ||
+                          (p.description || '').toLowerCase().includes(q) ||
+                          (p.projectLeader || '').toLowerCase().includes(q);
     return matchesCat && matchesSearch;
   });
 

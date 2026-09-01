@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export const AdminEvents: React.FC = () => {
-  const { events, addEvent, updateEvent, deleteEvent, setCurrentPage, setSelectedEventId, addToast } = useApp();
+  const { events, addEvent, updateEvent, deleteEvent, setCurrentPage, setSelectedEventId, addToast, confirmAction } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -38,8 +38,10 @@ export const AdminEvents: React.FC = () => {
 
   const filteredEvents = events.filter(e => {
     const matchesCat = selectedCategory === 'ALL' || e.category === selectedCategory;
-    const matchesSearch = e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          e.venue.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return matchesCat;
+    const matchesSearch = (e.title || '').toLowerCase().includes(q) ||
+                          (e.venue || e.location || '').toLowerCase().includes(q);
     return matchesCat && matchesSearch;
   });
 
@@ -241,13 +243,26 @@ export const AdminEvents: React.FC = () => {
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
-                          if (confirm(`Delete event "${evt.title}"?`)) {
-                            deleteEvent(evt.id);
-                            addToast(`Event "${evt.title}" deleted.`, 'info');
-                          }
+                          confirmAction({
+                            title: 'Delete Event Assembly',
+                            message: `Are you sure you want to delete "${evt.title}"? Registered participants and attendance links for this event will also be removed.`,
+                            confirmText: 'Delete Event',
+                            cancelText: 'Cancel',
+                            variant: 'danger',
+                            itemDetails: {
+                              label: 'Event Details',
+                              value: evt.title,
+                              subValue: `Date: ${evt.date} • Venue: ${evt.venue}`
+                            },
+                            onConfirm: () => {
+                              deleteEvent(evt.id);
+                              addToast(`Event "${evt.title}" deleted.`, 'info');
+                            }
+                          });
                         }}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
                         title="Delete Event"
                       >
                         <Trash2 className="w-4 h-4" />

@@ -42,6 +42,7 @@ import {
   signOutFirebase,
   subscribeToAuth
 } from '../firebase/firestoreService';
+import { ConfirmModal, ConfirmModalConfig } from '../components/common/ConfirmModal';
 import {
   storageService,
   StorageSnapshot,
@@ -228,6 +229,8 @@ interface AppContextType {
 
   auditLogs: AuditLogItem[];
   logAuditEvent: (action: string, module: AuditLogItem['module'], details: string) => void;
+
+  confirmAction: (options: Omit<ConfirmModalConfig, 'isOpen'>) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -256,6 +259,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register' | 'admin-login'>('login');
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<ConfirmModalConfig | null>(null);
+
+  const confirmAction = useCallback((options: Omit<ConfirmModalConfig, 'isOpen'>) => {
+    setConfirmModalConfig({
+      ...options,
+      isOpen: true
+    });
+  }, []);
 
   // Theme & Accessibility State
   const [theme, setThemeState] = useState<ThemeMode>(() => {
@@ -475,10 +486,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         setCurrentUser(prev => {
           // If already set with correct name, keep it
-          if (prev && prev.email.toLowerCase() === trimmedEmail && prev.name === displayName) {
+          if (prev && prev.email && prev.email.toLowerCase() === trimmedEmail && prev.name === displayName) {
             return prev;
           }
-          const matched = members.find(m => m.email.toLowerCase().trim() === trimmedEmail);
+          const matched = members.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
           const memberId = matched?.memberId || `PAGASA-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
           const userObj: User = {
@@ -691,7 +702,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                            trimmedEmail === 'giancarlomagat2104@gmail.com' || 
                            trimmedEmail.includes('admin');
 
-      const matchedMember = members.find(m => m.email.toLowerCase().trim() === trimmedEmail);
+      const matchedMember = members.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
       const fetchedName = authUser.name || (matchedMember ? matchedMember.fullName : formatNameFromEmail(trimmedEmail));
       const memberId = matchedMember?.memberId || `PAGASA-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -735,7 +746,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             certificatesEarned: 0
           }
         };
-        setMembers(prev => [newMember, ...prev.filter(m => m.email.toLowerCase().trim() !== trimmedEmail)]);
+        setMembers(prev => [newMember, ...prev.filter(m => (m.email || '').toLowerCase().trim() !== trimmedEmail)]);
       }
 
       const userObj: User = {
@@ -759,18 +770,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loginUser = (emailOrIdentifier: string, targetRole?: UserRole, providedName?: string): boolean => {
-    const input = emailOrIdentifier.trim().toLowerCase();
+    const input = (emailOrIdentifier || '').trim().toLowerCase();
     const matchedMember = members.find(m => 
-      m.email.toLowerCase().trim() === input || 
-      m.memberId.toLowerCase().trim() === input
+      (m.email || '').toLowerCase().trim() === input || 
+      (m.memberId || '').toLowerCase().trim() === input
     );
     const matchedOfficial = officials.find(o => 
-      o.contactEmail?.toLowerCase().trim() === input ||
-      o.fullName.toLowerCase().trim() === input
+      (o.contactEmail || '').toLowerCase().trim() === input ||
+      (o.fullName || '').toLowerCase().trim() === input
     );
     const matchedUser = INITIAL_USERS.find(u => 
-      u.email.toLowerCase().trim() === input ||
-      u.memberId?.toLowerCase().trim() === input
+      (u.email || '').toLowerCase().trim() === input ||
+      (u.memberId || '').toLowerCase().trim() === input
     );
 
     let resolvedName = providedName?.trim() || '';
@@ -852,7 +863,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     };
 
-    setMembers(prev => [newMember, ...prev.filter(m => m.email.toLowerCase().trim() !== newMember.email.toLowerCase().trim())]);
+    setMembers(prev => [newMember, ...prev.filter(m => (m.email || '').toLowerCase().trim() !== (newMember.email || '').toLowerCase().trim())]);
 
     const userObj: User = {
       id: newMember.id,
@@ -920,7 +931,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (
             (currentUser?.id && m.id === currentUser.id) || 
             (currentUser?.memberId && m.memberId === currentUser.memberId) || 
-            (currentUser?.email && m.email.toLowerCase() === currentUser.email.toLowerCase())
+            (currentUser?.email && m.email && m.email.toLowerCase() === currentUser.email.toLowerCase())
           ) {
             return {
               ...m,
@@ -1041,7 +1052,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updatedList;
     });
 
-    if (currentUser && (currentUser.id === id || currentUser.memberId === id || currentUser.memberId === updates.memberId || (currentUser.email && updates.email && currentUser.email.toLowerCase() === updates.email.toLowerCase()))) {
+    if (currentUser && (currentUser.id === id || currentUser.memberId === id || currentUser.memberId === updates.memberId || (currentUser.email && updates.email && currentUser.email.toLowerCase() === (updates.email || '').toLowerCase()))) {
       setCurrentUser(prev => {
         if (!prev) return null;
         const updatedUser = {
@@ -1225,11 +1236,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!session) return { success: false, message: 'Attendance session not found.' };
     if (!session.isOpen) return { success: false, message: 'This attendance session is currently closed.' };
 
+    const targetInput = (memberIdentifier || '').trim().toLowerCase();
     const member = members.find(m => 
-      m.memberId.toLowerCase() === memberIdentifier.trim().toLowerCase() ||
+      (m.memberId && m.memberId.toLowerCase() === targetInput) ||
       m.id === memberIdentifier ||
-      m.fullName.toLowerCase() === memberIdentifier.trim().toLowerCase() ||
-      memberIdentifier.includes(m.memberId)
+      (m.fullName && m.fullName.toLowerCase() === targetInput) ||
+      (m.memberId && targetInput.includes(m.memberId.toLowerCase()))
     );
 
     if (!member) {
@@ -1566,10 +1578,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         markAllNotificationsAsRead,
         addNotification,
         auditLogs,
-        logAuditEvent
+        logAuditEvent,
+        confirmAction
       }}
     >
       {children}
+      <ConfirmModal 
+        config={confirmModalConfig} 
+        onClose={() => setConfirmModalConfig(null)} 
+      />
     </AppContext.Provider>
   );
 };

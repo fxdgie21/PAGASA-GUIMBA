@@ -168,8 +168,8 @@ export const AuthModal: React.FC = () => {
                 <span className="text-xs font-semibold uppercase tracking-wider text-sky-200">
                   PAGASA Guimba MIS
                 </span>
-                <span className="text-[10px] bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 px-2 py-0.2 rounded-full font-bold">
-                  Gmail Portal Access
+                <span className="text-[10px] bg-sky-400/20 text-sky-200 border border-sky-400/30 px-2 py-0.5 rounded-full font-semibold">
+                  Official Portal
                 </span>
               </div>
               <h2 className="text-xl font-display font-bold">
@@ -338,7 +338,7 @@ export const AuthModal: React.FC = () => {
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                   </svg>
-                  <span>{isGoogleLoading ? 'Verifying Google Account...' : 'Continue with Google (Instant Gmail Sign-In)'}</span>
+                  <span>{isGoogleLoading ? 'Verifying Google Account...' : 'Continue with Google'}</span>
                 </button>
 
                 <div className="relative my-2">
@@ -346,13 +346,13 @@ export const AuthModal: React.FC = () => {
                     <div className="w-full border-t border-slate-200"></div>
                   </div>
                   <div className="relative flex justify-center text-[11px] uppercase">
-                    <span className="bg-white px-3 text-slate-400 font-semibold tracking-wider">Or enter Gmail / Member ID</span>
+                    <span className="bg-white px-3 text-slate-400 font-semibold tracking-wider">Or continue with Email / Member ID</span>
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    {authModalMode === 'admin-login' ? 'Admin Official Email' : 'Registered Gmail Address or Member ID'}
+                    {authModalMode === 'admin-login' ? 'Email Address' : 'Email Address or Member ID'}
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -361,34 +361,15 @@ export const AuthModal: React.FC = () => {
                       required
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder={authModalMode === 'admin-login' ? 'giancarlomagat2104@gmail.com' : 'e.g. yourname@gmail.com or PAGASA-2026-0001'}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-semibold text-slate-700">
-                      Full Name
-                    </label>
-                    <span className="text-[10px] text-slate-400 font-medium">Optional (Auto-filled from roster)</span>
-                  </div>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={loginFullName}
-                      onChange={(e) => setLoginFullName(e.target.value)}
-                      placeholder="e.g. Gian Carlo Magat"
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      placeholder={authModalMode === 'admin-login' ? 'name@example.com' : 'Email address or Member ID'}
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400"
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Passcode / Password
+                    Password
                   </label>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -396,8 +377,8 @@ export const AuthModal: React.FC = () => {
                       type="password"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Enter password or default (pagasa2026)"
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      placeholder="Enter your password"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400"
                     />
                   </div>
                 </div>

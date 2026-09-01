@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const AdminAnnouncements: React.FC = () => {
-  const { announcements, addAnnouncement, updateAnnouncement, deleteAnnouncement, currentUser, addToast } = useApp();
+  const { announcements, addAnnouncement, updateAnnouncement, deleteAnnouncement, currentUser, addToast, confirmAction } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,10 +28,12 @@ export const AdminAnnouncements: React.FC = () => {
   const [isPinned, setIsPinned] = useState(false);
   const [isPublished, setIsPublished] = useState(true);
 
-  const filteredAnn = announcements.filter(a => 
-    a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    a.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredAnn = announcements.filter(a => {
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return true;
+    return (a.title || '').toLowerCase().includes(q) ||
+           (a.category || '').toLowerCase().includes(q);
+  });
 
   const handleOpenCreate = () => {
     setEditingAnn(null);
@@ -158,13 +160,27 @@ export const AdminAnnouncements: React.FC = () => {
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
-                          if (confirm(`Delete announcement "${ann.title}"?`)) {
-                            deleteAnnouncement(ann.id);
-                            addToast('Announcement deleted.', 'info');
-                          }
+                          confirmAction({
+                            title: 'Delete Announcement',
+                            message: `Are you sure you want to delete "${ann.title}"? This bulletin will be removed from both the public portal and the member dashboard.`,
+                            confirmText: 'Delete Notice',
+                            cancelText: 'Cancel',
+                            variant: 'danger',
+                            itemDetails: {
+                              label: 'Announcement Title',
+                              value: ann.title,
+                              subValue: `Category: ${ann.category} • Author: ${ann.author}`
+                            },
+                            onConfirm: () => {
+                              deleteAnnouncement(ann.id);
+                              addToast('Announcement deleted.', 'info');
+                            }
+                          });
                         }}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                        title="Delete Announcement"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

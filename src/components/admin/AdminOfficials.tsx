@@ -4,7 +4,7 @@ import { Official } from '../../types';
 import { ShieldCheck, Plus, Edit3, Trash2, X, Mail, Phone } from 'lucide-react';
 
 export const AdminOfficials: React.FC = () => {
-  const { officials, addOfficial, updateOfficial, deleteOfficial, addToast } = useApp();
+  const { officials, addOfficial, updateOfficial, deleteOfficial, addToast, confirmAction } = useApp();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOfficial, setEditingOfficial] = useState<Official | null>(null);
@@ -129,13 +129,27 @@ export const AdminOfficials: React.FC = () => {
                   <Edit3 className="w-3.5 h-3.5" />
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
-                    if (confirm(`Remove official ${o.name}?`)) {
-                      deleteOfficial(o.id);
-                      addToast('Official removed from roster.', 'info');
-                    }
+                    confirmAction({
+                      title: 'Remove Officer / Official',
+                      message: `Are you sure you want to remove ${o.name} from the official leadership roster?`,
+                      confirmText: 'Remove Officer',
+                      cancelText: 'Cancel',
+                      variant: 'danger',
+                      itemDetails: {
+                        label: 'Official Profile',
+                        value: o.name,
+                        subValue: `Position: ${o.position} • Committee: ${o.committee}`
+                      },
+                      onConfirm: () => {
+                        deleteOfficial(o.id);
+                        addToast('Official removed from roster.', 'info');
+                      }
+                    });
                   }}
-                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"
+                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                  title="Remove Officer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

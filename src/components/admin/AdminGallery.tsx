@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 export const AdminGallery: React.FC = () => {
-  const { gallery, addGalleryItem, deleteGalleryItem, addToast } = useApp();
+  const { gallery, addGalleryItem, deleteGalleryItem, addToast, confirmAction } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,10 +23,12 @@ export const AdminGallery: React.FC = () => {
   const [eventTag, setEventTag] = useState('Guimba Youth Summit');
   const [imageUrl, setImageUrl] = useState('');
 
-  const filtered = gallery.filter(g => 
-    g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    g.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filtered = gallery.filter(g => {
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return true;
+    return (g.title || '').toLowerCase().includes(q) ||
+           (g.category || '').toLowerCase().includes(q);
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,13 +84,27 @@ export const AdminGallery: React.FC = () => {
                 {item.category}
               </span>
               <button
+                type="button"
                 onClick={() => {
-                  if (confirm('Delete this photo?')) {
-                    deleteGalleryItem(item.id);
-                    addToast('Photo deleted.', 'info');
-                  }
+                  confirmAction({
+                    title: 'Delete Gallery Photo',
+                    message: `Are you sure you want to delete this photo "${item.title}" from the municipal gallery?`,
+                    confirmText: 'Delete Photo',
+                    cancelText: 'Cancel',
+                    variant: 'danger',
+                    itemDetails: {
+                      label: 'Photo Item',
+                      value: item.title,
+                      subValue: `Category: ${item.category} • Tag: ${item.eventTag}`
+                    },
+                    onConfirm: () => {
+                      deleteGalleryItem(item.id);
+                      addToast('Photo deleted from gallery.', 'info');
+                    }
+                  });
                 }}
-                className="absolute top-2 right-2 p-1.5 bg-rose-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-2 right-2 p-1.5 bg-rose-600/90 hover:bg-rose-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-sm"
+                title="Delete Photo"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

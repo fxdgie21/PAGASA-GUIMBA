@@ -22,9 +22,11 @@ export const ActivitiesPage: React.FC = () => {
 
   const filteredActivities = activities.filter(act => {
     const matchesCat = selectedCategory === 'ALL' || act.category === selectedCategory;
-    const matchesSearch = act.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          act.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          act.leader.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return matchesCat;
+    const matchesSearch = (act.title || '').toLowerCase().includes(q) ||
+                          (act.description || '').toLowerCase().includes(q) ||
+                          (act.leader || '').toLowerCase().includes(q);
     return matchesCat && matchesSearch;
   });
 

@@ -37,7 +37,8 @@ export const AdminSettings: React.FC = () => {
     setTheme,
     toggleTheme,
     colorPalette,
-    setColorPalette
+    setColorPalette,
+    confirmAction
   } = useApp();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -479,10 +480,22 @@ export const AdminSettings: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              if (confirm('Are you sure you want to reset all records to default demonstration state?')) {
-                resetToDefaults();
-                addToast('System data restored to default factory state.', 'info');
-              }
+              confirmAction({
+                title: 'Factory Reset All Records',
+                message: 'Are you sure you want to reset all records, roster members, events, and configuration to the default demonstration factory state?',
+                confirmText: 'Reset to Factory Defaults',
+                cancelText: 'Cancel',
+                variant: 'danger',
+                itemDetails: {
+                  label: 'System Action',
+                  value: 'Re-initialize Local Storage & Demonstration Data',
+                  subValue: 'All custom members, attendance sheets, and certificates created in this session will be restored to defaults.'
+                },
+                onConfirm: () => {
+                  resetToDefaults();
+                  addToast('System data restored to default factory state.', 'info');
+                }
+              });
             }}
             className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition-all shadow-xs"
           >

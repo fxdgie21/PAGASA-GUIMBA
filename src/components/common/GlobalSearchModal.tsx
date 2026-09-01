@@ -27,13 +27,13 @@ export const GlobalSearchModal: React.FC = () => {
     const q = query.toLowerCase();
 
     return {
-      events: events.filter(e => e.title.toLowerCase().includes(q) || e.description.toLowerCase().includes(q) || e.location.toLowerCase().includes(q)),
-      projects: projects.filter(p => p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || p.projectLeader.toLowerCase().includes(q)),
-      announcements: announcements.filter(a => a.title.toLowerCase().includes(q) || a.content.toLowerCase().includes(q) || a.category.toLowerCase().includes(q)),
-      activities: activities.filter(act => act.title.toLowerCase().includes(q) || act.leader.toLowerCase().includes(q)),
-      officials: officials.filter(o => o.fullName.toLowerCase().includes(q) || o.position.toLowerCase().includes(q) || o.committee.toLowerCase().includes(q)),
+      events: events.filter(e => (e.title || '').toLowerCase().includes(q) || (e.description || '').toLowerCase().includes(q) || (e.location || e.venue || '').toLowerCase().includes(q)),
+      projects: projects.filter(p => (p.title || '').toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q) || (p.projectLeader || '').toLowerCase().includes(q)),
+      announcements: announcements.filter(a => (a.title || '').toLowerCase().includes(q) || (a.content || '').toLowerCase().includes(q) || (a.category || '').toLowerCase().includes(q)),
+      activities: activities.filter(act => (act.title || '').toLowerCase().includes(q) || (act.leader || '').toLowerCase().includes(q) || (act.description || '').toLowerCase().includes(q)),
+      officials: officials.filter(o => (o.fullName || '').toLowerCase().includes(q) || (o.position || '').toLowerCase().includes(q) || (o.committee || '').toLowerCase().includes(q)),
       members: (currentRole === 'SUPER_ADMIN' || currentRole === 'ADMIN' || currentRole === 'EVENT_STAFF')
-        ? members.filter(m => m.fullName.toLowerCase().includes(q) || m.memberId.toLowerCase().includes(q) || m.barangay.toLowerCase().includes(q))
+        ? members.filter(m => (m.fullName || '').toLowerCase().includes(q) || (m.memberId || '').toLowerCase().includes(q) || (m.barangay || '').toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q))
         : []
     };
   }, [query, events, projects, announcements, activities, officials, members, currentRole]);

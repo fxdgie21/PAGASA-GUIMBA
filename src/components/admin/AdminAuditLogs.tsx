@@ -18,10 +18,12 @@ export const AdminAuditLogs: React.FC = () => {
   const [selectedAction, setSelectedAction] = useState('ALL');
 
   const filteredLogs = auditLogs.filter(l => {
-    const matchesAction = selectedAction === 'ALL' || l.action.toLowerCase().includes(selectedAction.toLowerCase());
-    const matchesSearch = l.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          l.performedBy.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          l.details.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesAction = selectedAction === 'ALL' || (l.action || '').toLowerCase().includes(selectedAction.toLowerCase());
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return matchesAction;
+    const matchesSearch = (l.action || '').toLowerCase().includes(q) ||
+                          (l.performedBy || '').toLowerCase().includes(q) ||
+                          (l.details || '').toLowerCase().includes(q);
     return matchesAction && matchesSearch;
   });
 

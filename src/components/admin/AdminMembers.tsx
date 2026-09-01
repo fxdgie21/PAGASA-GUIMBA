@@ -40,7 +40,8 @@ export const AdminMembers: React.FC = () => {
     setSelectedMemberId,
     switchRole,
     setCurrentPage,
-    addToast 
+    addToast,
+    confirmAction
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,11 +75,12 @@ export const AdminMembers: React.FC = () => {
     const matchesBarangay = selectedBarangay === 'ALL' || m.barangay === selectedBarangay;
     const matchesStatus = selectedStatus === 'ALL' || m.membershipStatus === selectedStatus;
     const matchesGmail = !onlyGmailAccess || (m.email && m.email.toLowerCase().includes('gmail.com'));
-    const q = searchQuery.toLowerCase();
-    const matchesSearch = m.fullName.toLowerCase().includes(q) ||
-                          m.memberId.toLowerCase().includes(q) ||
-                          m.email.toLowerCase().includes(q) ||
-                          m.barangay.toLowerCase().includes(q);
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return matchesBarangay && matchesStatus && matchesGmail;
+    const matchesSearch = (m.fullName || '').toLowerCase().includes(q) ||
+                          (m.memberId || '').toLowerCase().includes(q) ||
+                          (m.email || '').toLowerCase().includes(q) ||
+                          (m.barangay || '').toLowerCase().includes(q);
     return matchesBarangay && matchesStatus && matchesGmail && matchesSearch;
   });
 
@@ -478,11 +480,24 @@ export const AdminMembers: React.FC = () => {
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
-                            if (confirm(`Remove member record and revoke Gmail portal access for ${m.fullName}?`)) {
-                              deleteMember(m.id);
-                              addToast(`Member ${m.fullName} deleted.`, 'info');
-                            }
+                            confirmAction({
+                              title: 'Remove Member Record',
+                              message: `Are you sure you want to remove ${m.fullName}? This will revoke their Gmail portal access and delete their registration pass.`,
+                              confirmText: 'Delete Member',
+                              cancelText: 'Keep Member',
+                              variant: 'danger',
+                              itemDetails: {
+                                label: 'Youth Member Details',
+                                value: `${m.fullName} (${m.memberId})`,
+                                subValue: m.email ? `Email: ${m.email} • Brgy. ${m.barangay}` : `Barangay: ${m.barangay}`
+                              },
+                              onConfirm: () => {
+                                deleteMember(m.id);
+                                addToast(`Member ${m.fullName} deleted successfully.`, 'info');
+                              }
+                            });
                           }}
                           className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Delete Member"

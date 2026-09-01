@@ -12,12 +12,13 @@ import {
   ShieldCheck, 
   Sparkles, 
   X,
-  FileCheck
+  FileCheck,
+  Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const AdminCertificates: React.FC = () => {
-  const { certificates, members, events, issueCertificate, addToast } = useApp();
+  const { certificates, members, events, issueCertificate, deleteCertificate, addToast, confirmAction } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
@@ -33,11 +34,13 @@ export const AdminCertificates: React.FC = () => {
   const [verifyInput, setVerifyInput] = useState('');
   const [verifyResult, setVerifyResult] = useState<CertificateItem | null | 'NOT_FOUND'>(null);
 
-  const filteredCerts = certificates.filter(c => 
-    c.recipientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.certificateNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.eventTitle.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCerts = certificates.filter(c => {
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) return true;
+    return (c.recipientName || '').toLowerCase().includes(q) ||
+           (c.certificateNumber || '').toLowerCase().includes(q) ||
+           (c.eventTitle || '').toLowerCase().includes(q);
+  });
 
   const handleIssueSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,13 +206,41 @@ export const AdminCertificates: React.FC = () => {
                   </td>
                   <td className="py-3 px-4 text-slate-500">{c.issueDate}</td>
                   <td className="py-3 px-4 text-right">
-                    <button
-                      onClick={() => setSelectedCert(c)}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 ml-auto shadow-xs"
-                    >
-                      <Printer className="w-3 h-3" />
-                      <span>Print & View</span>
-                    </button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCert(c)}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                      >
+                        <Printer className="w-3 h-3" />
+                        <span>Print & View</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          confirmAction({
+                            title: 'Revoke / Delete Certificate',
+                            message: `Are you sure you want to delete certificate #${c.certificateNumber} issued to ${c.recipientName}?`,
+                            confirmText: 'Delete Certificate',
+                            cancelText: 'Cancel',
+                            variant: 'danger',
+                            itemDetails: {
+                              label: 'Certificate Credentials',
+                              value: `${c.certificateNumber} — ${c.recipientName}`,
+                              subValue: `${c.certificateType} Certificate • ${c.eventTitle}`
+                            },
+                            onConfirm: () => {
+                              deleteCertificate(c.id);
+                              addToast(`Certificate #${c.certificateNumber} deleted.`, 'info');
+                            }
+                          });
+                        }}
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                        title="Delete Certificate"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
