@@ -1,0 +1,664 @@
+import React, { useState } from 'react';
+import { useApp } from '../../context/AppContext';
+import { GUIMBA_BARANGAYS } from '../../data/mockData';
+import { PagasaLogo } from './PagasaLogo';
+import { X, Lock, Mail, User, Phone, Calendar, Shield, ArrowRight, CheckCircle2, Loader2, Sparkles, KeyRound } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import confetti from 'canvas-confetti';
+
+export const AuthModal: React.FC = () => {
+  const {
+    isAuthModalOpen,
+    setIsAuthModalOpen,
+    authModalMode,
+    setAuthModalMode,
+    loginWithSupabase,
+    signUpWithSupabase,
+    resetUserPassword,
+    loginWithGoogle,
+    switchRole,
+    isSupabaseConfigured
+  } = useApp();
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotStatus, setForgotStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    try {
+      const success = await loginWithGoogle();
+      if (success) {
+        setIsAuthModalOpen(false);
+      }
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  // Login form state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginFullName, setLoginFullName] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
+
+  // Register form state
+  const [regFullName, setRegFullName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regContact, setRegContact] = useState('');
+  const [regBirthdate, setRegBirthdate] = useState('2004-01-01');
+  const [regGender, setRegGender] = useState<'Male' | 'Female' | 'Prefer not to say' | 'Other'>('Male');
+  const [regAddress, setRegAddress] = useState('');
+  const [regBarangay, setRegBarangay] = useState(GUIMBA_BARANGAYS[0]);
+  const [regEducation, setRegEducation] = useState<'High School' | 'Senior High' | 'College / University' | 'Vocational / TVET' | 'Out of School Youth' | 'Employed Professional' | 'Other'>('College / University');
+  const [regOccupation, setRegOccupation] = useState('');
+  const [regEmergencyName, setRegEmergencyName] = useState('');
+  const [regEmergencyRel, setRegEmergencyRel] = useState('Parent');
+  const [regEmergencyContact, setRegEmergencyContact] = useState('');
+  const [regSuccessMemberId, setRegSuccessMemberId] = useState<string | null>(null);
+
+  if (!isAuthModalOpen) return null;
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail.trim() || !loginPassword.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      const targetRole = authModalMode === 'admin-login' ? 'SUPER_ADMIN' : 'MEMBER';
+      const res = await loginWithSupabase(loginEmail, loginPassword, targetRole, loginFullName);
+      if (res.success) {
+        setIsAuthModalOpen(false);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regFullName.trim() || !regEmail.trim() || !regContact.trim() || !regPassword.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      // Calculate approximate age
+      const birthYear = new Date(regBirthdate).getFullYear();
+      const currentYear = 2026;
+      const calculatedAge = Math.max(15, currentYear - birthYear);
+
+      const res = await signUpWithSupabase(regEmail, regPassword, {
+        fullName: regFullName,
+        email: regEmail,
+        contactNumber: regContact,
+        birthdate: regBirthdate,
+        age: calculatedAge,
+        gender: regGender,
+        address: regAddress || `Purok 2, Brgy. ${regBarangay}`,
+        barangay: regBarangay,
+        educationalStatus: regEducation,
+        occupation: regOccupation || 'Student',
+        profilePicture: regGender === 'Female' 
+          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
+          : 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
+        membershipStatus: 'Pending',
+        organizationPosition: 'Youth Member',
+        committee: 'General Youth Volunteer',
+        emergencyContact: {
+          name: regEmergencyName || 'Family Member',
+          relationship: regEmergencyRel || 'Parent',
+          contactNumber: regEmergencyContact || regContact
+        }
+      });
+
+      if (res.memberId) {
+        setRegSuccessMemberId(res.memberId);
+      } else {
+        setRegSuccessMemberId(`PAGASA-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+      }
+
+      try {
+        confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+      } catch (_) {}
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotStatus('loading');
+    try {
+      await resetUserPassword(forgotEmail);
+      setForgotStatus('success');
+    } catch {
+      setForgotStatus('idle');
+    }
+  };
+
+  const quickDemoLogin = (role: 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER') => {
+    switchRole(role);
+    setIsAuthModalOpen(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto no-print">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-6"
+      >
+        {/* Header Bar */}
+        <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-sky-800 p-6 text-white relative">
+          <button
+            onClick={() => {
+              setIsAuthModalOpen(false);
+              setRegSuccessMemberId(null);
+              setShowForgotModal(false);
+            }}
+            className="absolute top-4 right-4 text-white/80 hover:text-white p-1 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <PagasaLogo size={46} showText={false} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-sky-200">
+                  PAGASA Guimba MIS
+                </span>
+                <span className="text-[10px] bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 px-2 py-0.2 rounded-full font-bold">
+                  Official Portal
+                </span>
+              </div>
+              <h2 className="text-xl font-display font-bold">
+                {showForgotModal ? 'Reset Portal Password' :
+                  regSuccessMemberId ? 'Registration Received!' : 
+                  authModalMode === 'admin-login' ? 'Administrator Portal Access' :
+                  authModalMode === 'login' ? 'Member Portal Sign In' : 'Youth Membership Application'}
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Forgot Password View */}
+        {showForgotModal ? (
+          <div className="p-6 space-y-4">
+            <div className="flex items-center gap-2 text-slate-700 text-sm font-semibold">
+              <KeyRound className="w-5 h-5 text-blue-600" />
+              <span>Password Recovery</span>
+            </div>
+            {forgotStatus === 'success' ? (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+                <h4 className="font-bold text-slate-900 text-sm">Reset Instructions Sent</h4>
+                <p className="text-xs text-slate-600">
+                  We've sent a password reset link to <strong>{forgotEmail}</strong>. Please check your inbox and spam folder.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotModal(false);
+                    setForgotStatus('idle');
+                  }}
+                  className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all"
+                >
+                  Return to Sign In
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Enter your registered account email and we'll send password recovery instructions.
+                </p>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Account Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="your.email@example.com"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={forgotStatus === 'loading'}
+                    className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {forgotStatus === 'loading' && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <span>Send Reset Link</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        ) : regSuccessMemberId ? (
+          /* Success Screen after registration */
+          <div className="p-8 text-center space-y-4">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900">Application Submitted!</h3>
+            <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+              Mabuhay! Your youth membership registration has been received and assigned Member ID:
+            </p>
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl inline-block font-mono font-bold text-blue-800 text-lg">
+              {regSuccessMemberId}
+            </div>
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 text-left max-w-md mx-auto">
+              <p className="font-semibold mb-0.5">Status: Pending Verification</p>
+              Your account has been enrolled. You can log in using your registered email and password.
+            </div>
+            <div className="pt-4 flex gap-3 justify-center">
+              <button
+                onClick={() => {
+                  setRegSuccessMemberId(null);
+                  setAuthModalMode('login');
+                }}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md cursor-pointer"
+              >
+                Proceed to Login
+              </button>
+              <button
+                onClick={() => {
+                  setIsAuthModalOpen(false);
+                  setRegSuccessMemberId(null);
+                }}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6">
+            {/* Mode Switch Tabs */}
+            <div className="flex bg-slate-100 p-1 rounded-2xl mb-6">
+              <button
+                onClick={() => setAuthModalMode('login')}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  authModalMode === 'login'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Member Login
+              </button>
+              <button
+                onClick={() => setAuthModalMode('admin-login')}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  authModalMode === 'admin-login'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Admin Login
+              </button>
+              <button
+                onClick={() => setAuthModalMode('register')}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  authModalMode === 'register'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Join Organization
+              </button>
+            </div>
+
+            {/* Login Form (Member or Admin) */}
+            {(authModalMode === 'login' || authModalMode === 'admin-login') && (
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    {authModalMode === 'admin-login' ? 'Admin Official Email' : 'Member Registered Email'}
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      required
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder={authModalMode === 'admin-login' ? 'giancarlomagat2104@gmail.com' : 'giancarlomagat2104@gmail.com'}
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Your Full Name
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-medium">Optional (Auto-detected if blank)</span>
+                  </div>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={loginFullName}
+                      onChange={(e) => setLoginFullName(e.target.value)}
+                      placeholder="e.g. Gian Carlo Magat"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    Remember me on this device
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotEmail(loginEmail);
+                      setShowForgotModal(true);
+                    }}
+                    className="text-blue-600 hover:underline font-medium cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <span>Sign In to Portal</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+
+                {/* Google Sign In via Supabase */}
+                <div className="relative my-3">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-slate-400 font-medium">Or continue with</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={isGoogleLoading}
+                  className="w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-60 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  </svg>
+                  <span>{isGoogleLoading ? 'Connecting OAuth...' : 'Sign In with Google (OAuth)'}</span>
+                </button>
+              </form>
+            )}
+
+            {/* Registration Form */}
+            {authModalMode === 'register' && (
+              <form onSubmit={handleRegisterSubmit} className="space-y-4 max-h-[58vh] overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Full Name *
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        value={regFullName}
+                        onChange={(e) => setRegFullName(e.target.value)}
+                        placeholder="e.g. Juan Dela Cruz"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Email Address *
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        required
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        placeholder="juan.delacruz@gmail.com"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Create Password *
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        required
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="At least 6 characters"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Mobile / Contact Number *
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        required
+                        value={regContact}
+                        onChange={(e) => setRegContact(e.target.value)}
+                        placeholder="0917-000-0000"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Barangay (Guimba) *
+                    </label>
+                    <select
+                      value={regBarangay}
+                      onChange={(e) => setRegBarangay(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    >
+                      {GUIMBA_BARANGAYS.map((b) => (
+                        <option key={b} value={b}>Brgy. {b}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Birthdate *
+                    </label>
+                    <div className="relative">
+                      <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="date"
+                        required
+                        value={regBirthdate}
+                        onChange={(e) => setRegBirthdate(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Gender
+                    </label>
+                    <select
+                      value={regGender}
+                      onChange={(e) => setRegGender(e.target.value as any)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Prefer not to say">Prefer not to say</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Educational / Youth Status
+                    </label>
+                    <select
+                      value={regEducation}
+                      onChange={(e) => setRegEducation(e.target.value as any)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    >
+                      <option value="College / University">College / University</option>
+                      <option value="Senior High">Senior High</option>
+                      <option value="High School">High School</option>
+                      <option value="Vocational / TVET">Vocational / TVET</option>
+                      <option value="Employed Professional">Employed Professional</option>
+                      <option value="Out of School Youth">Out of School Youth</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Street Address / Purok
+                  </label>
+                  <input
+                    type="text"
+                    value={regAddress}
+                    onChange={(e) => setRegAddress(e.target.value)}
+                    placeholder="Purok / Zone, Sitio, Landmark"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                    Emergency Contact Person
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      value={regEmergencyName}
+                      onChange={(e) => setRegEmergencyName(e.target.value)}
+                      placeholder="Contact Name"
+                      className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={regEmergencyRel}
+                      onChange={(e) => setRegEmergencyRel(e.target.value)}
+                      placeholder="Relationship (e.g. Mother)"
+                      className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                    />
+                    <input
+                      type="tel"
+                      value={regEmergencyContact}
+                      onChange={(e) => setRegEmergencyContact(e.target.value)}
+                      placeholder="Emergency Phone"
+                      className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-500">
+                  By registering, an official Supabase Auth user and PAGASA Guimba youth profile will be established.
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <span>Submit Membership Application</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+};
+
