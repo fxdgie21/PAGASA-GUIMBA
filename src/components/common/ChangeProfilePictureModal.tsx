@@ -21,6 +21,7 @@ interface ChangeProfilePictureModalProps {
   onClose: () => void;
   userType?: 'member' | 'admin';
   targetMemberId?: string;
+  memberId?: string;
   initialAvatar?: string;
   title?: string;
 }
@@ -89,16 +90,21 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
   onClose,
   userType = 'member',
   targetMemberId,
+  memberId,
   initialAvatar,
   title
 }) => {
   const { 
     currentUser, 
+    currentMember,
     updateCurrentUser, 
     updateMember, 
+    updateUserProfilePicture,
     members, 
     addToast 
   } = useApp();
+
+  const effectiveMemberId = targetMemberId || memberId;
 
   const [activeTab, setActiveTab] = useState<TabType>('presets');
   const [selectedCategory, setSelectedCategory] = useState<AvatarCategory>('all');
@@ -109,11 +115,25 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Initialize selected avatar on modal open
   useEffect(() => {
     if (isOpen) {
       const defaultAvatar = initialAvatar || 
-        (targetMemberId ? members.find(m => m.id === targetMemberId)?.profilePicture : null) || 
+        (effectiveMemberId ? members.find(m => m.id === effectiveMemberId || m.memberId === effectiveMemberId)?.profilePicture : null) || 
+        currentMember?.profilePicture ||
         currentUser?.avatar || 
         AVATAR_PRESETS[0].url;
       
@@ -122,7 +142,7 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
       setActiveTab('presets');
       setSelectedCategory('all');
     }
-  }, [isOpen, initialAvatar, targetMemberId, members, currentUser]);
+  }, [isOpen, initialAvatar, effectiveMemberId, members, currentUser, currentMember]);
 
   if (!isOpen) return null;
 
@@ -223,14 +243,17 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
       return;
     }
 
-    // 1. If target member ID is specified
-    if (targetMemberId) {
-      updateMember(targetMemberId, { profilePicture: selectedAvatar });
+    const targetId = effectiveMemberId || currentMember?.id || currentUser?.id;
+
+    // 1. If target member ID or current member is identified, update member profile
+    if (targetId) {
+      updateMember(targetId, { profilePicture: selectedAvatar });
     }
 
-    // 2. If editing logged-in user profile
-    if (userType === 'admin' || (currentUser && targetMemberId === currentUser.id)) {
+    // 2. Always update current logged-in user profile & session
+    if (!effectiveMemberId || effectiveMemberId === currentUser?.id || effectiveMemberId === currentUser?.memberId || effectiveMemberId === currentMember?.id || userType === 'admin') {
       updateCurrentUser({ avatar: selectedAvatar });
+      updateUserProfilePicture(selectedAvatar);
     }
 
     addToast('Profile avatar updated successfully!', 'success');
@@ -250,7 +273,14 @@ export const ChangeProfilePictureModal: React.FC<ChangeProfilePictureModalProps>
   const modalTitle = title || (userType === 'admin' ? 'Change Administrator Avatar' : 'Change Profile Picture');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200"
+    >
       <div 
         className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] transition-all"
         onClick={(e) => e.stopPropagation()}

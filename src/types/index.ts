@@ -48,6 +48,10 @@ export interface Member {
   organizationPosition?: string;
   committee?: string;
   portalPassword?: string;
+  gmailAccessEnabled?: boolean;
+  portalAccessRole?: 'MEMBER' | 'ADMIN' | 'COORDINATOR';
+  dateJoined?: string;
+  qrCode?: string;
   emergencyContact: {
     name: string;
     relationship: string;
@@ -194,6 +198,7 @@ export interface OfficialItem {
   name?: string;
   position: string;
   committee: string;
+  barangay?: string;
   rank?: number;
   order?: number;
   profilePicture: string;

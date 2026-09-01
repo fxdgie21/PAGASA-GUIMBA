@@ -402,11 +402,14 @@ export const AdminAttendance: React.FC = () => {
       </div>
 
       {/* Attendance Sheet Modal */}
-      <AttendanceSheetModal
-        session={activeSession}
-        records={attendanceRecords}
-        onClose={() => setIsSheetModalOpen(false)}
-      />
+      {isSheetModalOpen && (
+        <AttendanceSheetModal
+          isOpen={isSheetModalOpen}
+          session={activeSession}
+          records={attendanceRecords}
+          onClose={() => setIsSheetModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -13,9 +13,11 @@ export const OfficialsPage: React.FC = () => {
 
   const filteredOfficials = officials.filter(o => {
     const matchesComm = selectedCommittee === 'ALL' || o.committee === selectedCommittee;
-    const matchesSearch = o.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          o.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          o.barangay.toLowerCase().includes(searchQuery.toLowerCase());
+    const name = (o.fullName || (o as any).name || '').toLowerCase();
+    const pos = (o.position || '').toLowerCase();
+    const bgy = (o.barangay || '').toLowerCase();
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = name.includes(q) || pos.includes(q) || bgy.includes(q);
     return matchesComm && matchesSearch;
   });
 
@@ -96,7 +98,7 @@ export const OfficialsPage: React.FC = () => {
                 <p className="text-xs font-bold text-blue-700">{off.position}</p>
                 <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Brgy. {off.barangay}, Guimba</span>
+                  <span>Brgy. {off.barangay || 'Poblacion'}, Guimba</span>
                 </p>
                 <p className="text-xs text-slate-600 mt-2 line-clamp-2 italic">
                   "{off.bio}"
@@ -135,16 +137,18 @@ export const OfficialsPage: React.FC = () => {
               <div className="pt-2 border-t border-slate-200/80 space-y-1 text-slate-600">
                 <p className="flex items-center gap-2">
                   <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Brgy. {activeOfficialModal.barangay}, Guimba, Nueva Ecija</span>
+                  <span>Brgy. {activeOfficialModal.barangay || 'Poblacion'}, Guimba, Nueva Ecija</span>
                 </p>
                 <p className="flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{activeOfficialModal.email}</span>
+                  <span>{activeOfficialModal.contactEmail || activeOfficialModal.email || 'secretariat@pagasaguimba.org'}</span>
                 </p>
-                <p className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{activeOfficialModal.contactNumber}</span>
-                </p>
+                {activeOfficialModal.contactNumber && (
+                  <p className="flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{activeOfficialModal.contactNumber}</span>
+                  </p>
+                )}
               </div>
             </div>
 

@@ -4,15 +4,33 @@ import { AttendanceSession, AttendanceRecord } from '../../types';
 import { X, Printer, Download, FileSpreadsheet, CheckCircle2, Clock } from 'lucide-react';
 
 interface AttendanceSheetModalProps {
+  isOpen?: boolean;
   session: AttendanceSession | null;
   records: AttendanceRecord[];
   onClose: () => void;
 }
 
-export const AttendanceSheetModal: React.FC<AttendanceSheetModalProps> = ({ session, records, onClose }) => {
+export const AttendanceSheetModal: React.FC<AttendanceSheetModalProps> = ({ 
+  isOpen = true,
+  session, 
+  records, 
+  onClose 
+}) => {
   const { settings } = useApp();
 
-  if (!session) return null;
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !session) return null;
 
   const sessionRecords = records.filter(r => r.sessionId === session.id);
   const presentCount = sessionRecords.filter(r => r.status === 'Present').length;
@@ -48,8 +66,18 @@ export const AttendanceSheetModal: React.FC<AttendanceSheetModalProps> = ({ sess
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200 my-auto">
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200 my-auto animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Controls (Sticky Header - Hidden during print) */}
         <div className="p-3.5 sm:p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 no-print flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">

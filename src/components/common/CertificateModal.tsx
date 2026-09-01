@@ -96,19 +96,19 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ certificate,
               <div className="text-center sm:text-left">
                 <div className="h-8 sm:h-10 flex items-center justify-center sm:justify-start">
                   <div className="font-serif italic text-blue-900 text-xs sm:text-sm font-bold opacity-80 underline decoration-blue-400">
-                    {certificate.signatories[0]?.name}
+                    {certificate.signatories?.[0]?.name || 'Gian Carlo Magat'}
                   </div>
                 </div>
                 <div className="border-t border-slate-400 pt-1">
-                  <p className="text-xs font-bold text-slate-900">{certificate.signatories[0]?.name}</p>
-                  <p className="text-[10px] text-slate-500">{certificate.signatories[0]?.position}</p>
+                  <p className="text-xs font-bold text-slate-900">{certificate.signatories?.[0]?.name || 'Gian Carlo Magat'}</p>
+                  <p className="text-[10px] text-slate-500">{certificate.signatories?.[0]?.position || 'President, PAGASA Guimba'}</p>
                 </div>
               </div>
 
               {/* QR Verification Seal */}
               <div className="flex flex-col items-center justify-center text-center my-2 sm:my-0">
                 <div className="p-1.5 bg-white border border-slate-300 rounded-lg shadow-sm">
-                  <QRCodeSVG value={certificate.qrVerificationUrl} size={56} />
+                  <QRCodeSVG value={certificate.qrVerificationUrl || `https://pagasa-guimba.org/verify/${certificate.certificateNumber}`} size={56} />
                 </div>
                 <p className="text-[9px] font-mono text-slate-500 mt-1">
                   {certificate.certificateNumber}
@@ -122,15 +122,15 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ certificate,
               <div className="text-center sm:text-right">
                 <div className="h-8 sm:h-10 flex items-center justify-center sm:justify-end">
                   <div className="font-serif italic text-blue-900 text-xs sm:text-sm font-bold opacity-80 underline decoration-blue-400">
-                    {certificate.signatories[1]?.name || 'Alyssa Nicole Valenzuela'}
+                    {certificate.signatories?.[1]?.name || 'Alyssa Nicole Valenzuela'}
                   </div>
                 </div>
                 <div className="border-t border-slate-400 pt-1">
                   <p className="text-xs font-bold text-slate-900">
-                    {certificate.signatories[1]?.name || 'Alyssa Nicole Valenzuela'}
+                    {certificate.signatories?.[1]?.name || 'Alyssa Nicole Valenzuela'}
                   </p>
                   <p className="text-[10px] text-slate-500">
-                    {certificate.signatories[1]?.position || 'Vice President, PAGASA Guimba'}
+                    {certificate.signatories?.[1]?.position || 'Vice President, PAGASA Guimba'}
                   </p>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Member } from '../../types';
+import { Member, User } from '../../types';
 import { GUIMBA_BARANGAYS } from '../../data/mockData';
 import { 
   Users, 
@@ -18,7 +18,14 @@ import {
   Eye,
   Shield,
   FileSpreadsheet,
-  Camera
+  Camera,
+  Mail,
+  Copy,
+  LogIn,
+  Sparkles,
+  UserCheck,
+  ExternalLink,
+  Lock
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ChangeProfilePictureModal } from '../common/ChangeProfilePictureModal';
@@ -31,12 +38,15 @@ export const AdminMembers: React.FC = () => {
     deleteMember, 
     selectedMemberId, 
     setSelectedMemberId,
+    switchRole,
+    setCurrentPage,
     addToast 
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBarangay, setSelectedBarangay] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [onlyGmailAccess, setOnlyGmailAccess] = useState(false);
 
   // Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -58,22 +68,28 @@ export const AdminMembers: React.FC = () => {
   const [formPosition, setFormPosition] = useState('Youth Member');
   const [formCommittee, setFormCommittee] = useState('General Youth Volunteer');
   const [formAddress, setFormAddress] = useState('');
+  const [formGmailAccess, setFormGmailAccess] = useState(true);
 
   const filteredMembers = members.filter(m => {
     const matchesBarangay = selectedBarangay === 'ALL' || m.barangay === selectedBarangay;
     const matchesStatus = selectedStatus === 'ALL' || m.membershipStatus === selectedStatus;
-    const matchesSearch = m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          m.memberId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          m.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          m.barangay.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesBarangay && matchesStatus && matchesSearch;
+    const matchesGmail = !onlyGmailAccess || (m.email && m.email.toLowerCase().includes('gmail.com'));
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = m.fullName.toLowerCase().includes(q) ||
+                          m.memberId.toLowerCase().includes(q) ||
+                          m.email.toLowerCase().includes(q) ||
+                          m.barangay.toLowerCase().includes(q);
+    return matchesBarangay && matchesStatus && matchesGmail && matchesSearch;
   });
+
+  const gmailAuthorizedCount = members.filter(m => m.email && m.membershipStatus === 'Active').length;
+  const pendingCount = members.filter(m => m.membershipStatus === 'Pending').length;
 
   const handleOpenCreate = () => {
     setEditingMember(null);
     setFormName('');
     setFormEmail('');
-    setFormContact('');
+    setFormContact('+63 9');
     setFormBarangay(GUIMBA_BARANGAYS[0]);
     setFormBirthdate('2004-01-01');
     setFormGender('Male');
@@ -82,6 +98,7 @@ export const AdminMembers: React.FC = () => {
     setFormPosition('Youth Member');
     setFormCommittee('General Youth Volunteer');
     setFormAddress('');
+    setFormGmailAccess(true);
     setIsCreateModalOpen(true);
   };
 
@@ -95,23 +112,25 @@ export const AdminMembers: React.FC = () => {
     setFormGender(m.gender);
     setFormEducation(m.educationalStatus);
     setFormStatus(m.membershipStatus);
-    setFormPosition(m.organizationPosition);
-    setFormCommittee(m.committee);
+    setFormPosition(m.organizationPosition || 'Youth Member');
+    setFormCommittee(m.committee || 'General Youth Volunteer');
     setFormAddress(m.address);
+    setFormGmailAccess(m.gmailAccessEnabled !== false);
     setIsCreateModalOpen(true);
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName || !formEmail) return;
+    if (!formName.trim() || !formEmail.trim()) return;
 
     const birthYear = new Date(formBirthdate).getFullYear();
     const age = Math.max(15, 2026 - birthYear);
+    const cleanedEmail = formEmail.trim().toLowerCase();
 
     if (editingMember) {
       updateMember(editingMember.id, {
-        fullName: formName,
-        email: formEmail,
+        fullName: formName.trim(),
+        email: cleanedEmail,
         contactNumber: formContact,
         barangay: formBarangay,
         birthdate: formBirthdate,
@@ -121,46 +140,69 @@ export const AdminMembers: React.FC = () => {
         membershipStatus: formStatus,
         organizationPosition: formPosition,
         committee: formCommittee,
-        address: formAddress
+        address: formAddress,
+        gmailAccessEnabled: formGmailAccess
       });
-      addToast(`Member ${formName} updated.`, 'success');
+      addToast(`Member record for ${formName} updated. Gmail Portal Access: ${formStatus === 'Active' ? 'Enabled' : 'Pending'}`, 'success');
     } else {
-      addMember({
-        fullName: formName,
-        email: formEmail,
+      const newMember = addMember({
+        fullName: formName.trim(),
+        email: cleanedEmail,
         contactNumber: formContact,
         birthdate: formBirthdate,
         age,
         gender: formGender,
-        address: formAddress || `Purok 1, Brgy. ${formBarangay}`,
+        address: formAddress || `Purok 1, Brgy. ${formBarangay}, Guimba`,
         barangay: formBarangay,
         educationalStatus: formEducation,
-        occupation: 'Student / Youth',
+        occupation: 'Youth Member / Student',
         profilePicture: formGender === 'Female' 
           ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
           : 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
         membershipStatus: formStatus,
         organizationPosition: formPosition,
         committee: formCommittee,
+        gmailAccessEnabled: formGmailAccess,
         emergencyContact: {
           name: 'Family Contact',
-          relationship: 'Parent',
+          relationship: 'Parent / Guardian',
           contactNumber: formContact
         }
       });
-      addToast(`New member ${formName} registered with active QR Pass!`, 'success');
+      addToast(`Added new member ${formName} (${newMember.memberId}). User can now log in to the Member Portal with Gmail: ${cleanedEmail}`, 'success');
     }
 
     setIsCreateModalOpen(false);
   };
 
   const handleQuickApprove = (m: Member) => {
-    updateMember(m.id, { membershipStatus: 'Active' });
-    addToast(`Approved member: ${m.fullName} (${m.memberId})`, 'success');
+    updateMember(m.id, { membershipStatus: 'Active', gmailAccessEnabled: true });
+    addToast(`Approved member ${m.fullName}. Gmail portal access granted for ${m.email}!`, 'success');
+  };
+
+  const handleCopyCredentials = (m: Member) => {
+    const message = `MABUHAY! You have been registered in the PAGASA Guimba Youth MIS.\n\nName: ${m.fullName}\nMember ID: ${m.memberId}\nBarangay: Brgy. ${m.barangay}\nAuthorized Gmail: ${m.email}\nStatus: ${m.membershipStatus}\n\nYou can access your Member Portal, Digital QR Pass, and Certificates by logging in with your Gmail at: ${window.location.origin}`;
+    
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(message);
+      addToast(`Copied portal invitation & Gmail login details for ${m.fullName}!`, 'success');
+    }
+  };
+
+  const handleTestLoginAsMember = (m: Member) => {
+    const userPayload: User = {
+      id: m.id,
+      name: m.fullName,
+      email: m.email,
+      role: 'MEMBER',
+      avatar: m.profilePicture,
+      memberId: m.memberId
+    };
+    switchRole('MEMBER', userPayload);
   };
 
   const handleExportCSV = () => {
-    const headers = ['Member ID', 'Full Name', 'Email', 'Barangay', 'Age', 'Gender', 'Education', 'Status', 'Committee', 'Date Joined'];
+    const headers = ['Member ID', 'Full Name', 'Gmail / Email', 'Barangay', 'Age', 'Gender', 'Education', 'Status', 'Committee', 'Date Joined'];
     const rows = filteredMembers.map(m => [
       `"${m.memberId}"`,
       `"${m.fullName}"`,
@@ -170,8 +212,8 @@ export const AdminMembers: React.FC = () => {
       `"${m.gender}"`,
       `"${m.educationalStatus}"`,
       `"${m.membershipStatus}"`,
-      `"${m.committee}"`,
-      `"${m.dateJoined}"`
+      `"${m.committee || 'General Volunteer'}"`,
+      `"${m.dateJoined || m.membershipDate || '2026-01-01'}"`
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -190,18 +232,23 @@ export const AdminMembers: React.FC = () => {
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900">
-            Youth Member Directory
-          </h1>
-          <p className="text-xs text-slate-500">
-            Manage registrations, verify QR identities, and monitor barangay membership rosters ({filteredMembers.length} records).
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-display font-bold text-slate-900">
+              Youth Member Directory & User Access
+            </h1>
+            <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
+              Gmail Authorized
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Add authorized users with Gmail addresses to grant instant access to the Member Portal ({filteredMembers.length} records).
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
             <span>Export CSV</span>
@@ -209,11 +256,52 @@ export const AdminMembers: React.FC = () => {
 
           <button
             onClick={handleOpenCreate}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Register New Member</span>
+            <span>Add User / Member (Gmail)</span>
           </button>
+        </div>
+      </div>
+
+      {/* Quick Metrics Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Members</span>
+            <Users className="w-4 h-4 text-blue-600" />
+          </div>
+          <p className="text-2xl font-bold text-slate-900 font-display">{members.length}</p>
+          <span className="text-[10px] text-slate-400">All registered youth</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-emerald-200 bg-emerald-50/20 shadow-xs">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Gmail Authorized</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          </div>
+          <p className="text-2xl font-bold text-emerald-700 font-display">{gmailAuthorizedCount}</p>
+          <span className="text-[10px] text-emerald-600 font-medium">Can sign in with Gmail</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-xs">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Pending Review</span>
+            <UserCheck className="w-4 h-4 text-amber-600" />
+          </div>
+          <p className="text-2xl font-bold text-amber-700 font-display">{pendingCount}</p>
+          <span className="text-[10px] text-amber-600 font-medium">Awaiting admin approval</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Barangays</span>
+            <Shield className="w-4 h-4 text-sky-600" />
+          </div>
+          <p className="text-2xl font-bold text-slate-900 font-display">
+            {new Set(members.map(m => m.barangay)).size}
+          </p>
+          <span className="text-[10px] text-slate-400">Guimba communities</span>
         </div>
       </div>
 
@@ -225,12 +313,25 @@ export const AdminMembers: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search name, Member ID, barangay..."
+            placeholder="Search name, Gmail, Member ID, barangay..."
             className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {/* Gmail Filter Toggle */}
+          <button
+            onClick={() => setOnlyGmailAccess(prev => !prev)}
+            className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              onlyGmailAccess 
+                ? 'bg-blue-600 text-white shadow-xs' 
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Mail className="w-3.5 h-3.5 text-red-500" />
+            <span>{onlyGmailAccess ? 'Showing Gmail Users' : 'Filter by Gmail'}</span>
+          </button>
+
           {/* Barangay Dropdown */}
           <select
             value={selectedBarangay}
@@ -250,7 +351,7 @@ export const AdminMembers: React.FC = () => {
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none"
           >
             <option value="ALL">All Statuses</option>
-            <option value="Active">Active</option>
+            <option value="Active">Active (Portal Access Enabled)</option>
             <option value="Pending">Pending Review</option>
             <option value="Inactive">Inactive</option>
           </select>
@@ -263,20 +364,21 @@ export const AdminMembers: React.FC = () => {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-bold text-[10px]">
-                <th className="py-3 px-4">Member</th>
-                <th className="py-3 px-4">Member ID</th>
-                <th className="py-3 px-4">Barangay</th>
-                <th className="py-3 px-4">Age / Gender</th>
-                <th className="py-3 px-4">Committee</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4">Member & Gmail Access</th>
+                <th className="py-3.5 px-4">Member ID</th>
+                <th className="py-3.5 px-4">Barangay</th>
+                <th className="py-3.5 px-4">Committee / Role</th>
+                <th className="py-3.5 px-4">Portal Status</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-slate-400">
-                    No members match the query.
+                  <td colSpan={6} className="text-center py-10 text-slate-400">
+                    <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p className="font-semibold text-slate-600 text-sm">No members found</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Try searching with a different name or Gmail address, or add a new user.</p>
                   </td>
                 </tr>
               ) : (
@@ -292,37 +394,48 @@ export const AdminMembers: React.FC = () => {
                           <img
                             src={m.profilePicture}
                             alt=""
-                            className="w-9 h-9 rounded-full object-cover border border-slate-200 group-hover:brightness-90 transition-all"
+                            className="w-10 h-10 rounded-full object-cover border border-slate-200 group-hover:brightness-90 transition-all"
                           />
                           <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <Camera className="w-3.5 h-3.5 text-white" />
                           </div>
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900">{m.fullName}</p>
-                          <p className="text-[11px] text-slate-500">{m.email}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900">{m.fullName}</p>
+                            {m.membershipStatus === 'Active' && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Authorized to access Member Portal with this Gmail">
+                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                Gmail Active
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5 font-mono">
+                            <Mail className="w-3 h-3 text-red-500 flex-shrink-0" />
+                            <span className="text-blue-700 font-semibold">{m.email}</span>
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-blue-700">
-                      {m.memberId}
+                    <td className="py-3 px-4 font-mono font-bold text-slate-800">
+                      <span className="bg-slate-100 px-2 py-0.5 rounded text-[11px] text-slate-700 border border-slate-200">
+                        {m.memberId}
+                      </span>
                     </td>
                     <td className="py-3 px-4 font-semibold text-slate-700">
                       Brgy. {m.barangay}
                     </td>
                     <td className="py-3 px-4 text-slate-600">
-                      {m.age} yrs • {m.gender}
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 truncate max-w-[150px]">
-                      {m.committee}
+                      <p className="font-semibold text-slate-800">{m.organizationPosition || 'Youth Member'}</p>
+                      <p className="text-[10px] text-slate-500 truncate max-w-[140px]">{m.committee || 'General Volunteer'}</p>
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
                         m.membershipStatus === 'Active' ? 'bg-emerald-100 text-emerald-800' :
                         m.membershipStatus === 'Pending' ? 'bg-amber-100 text-amber-800' :
                         'bg-slate-200 text-slate-700'
                       }`}>
-                        {m.membershipStatus}
+                        {m.membershipStatus === 'Active' ? 'Portal Active' : m.membershipStatus}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right">
@@ -330,34 +443,48 @@ export const AdminMembers: React.FC = () => {
                         {m.membershipStatus === 'Pending' && (
                           <button
                             onClick={() => handleQuickApprove(m)}
-                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"
-                            title="Approve Member"
+                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                            title="Approve Member & Enable Gmail Access"
                           >
                             <Check className="w-4 h-4" />
                           </button>
                         )}
                         <button
+                          onClick={() => handleCopyCredentials(m)}
+                          className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          title="Copy Member Login Details & Invite"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleTestLoginAsMember(m)}
+                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                          title="Log In As This Member (Preview Portal)"
+                        >
+                          <LogIn className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => setViewingMember(m)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           title="View Digital QR Pass"
                         >
                           <QrCode className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleOpenEdit(m)}
-                          className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg"
+                          className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                           title="Edit Member"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`Remove member record for ${m.fullName}?`)) {
+                            if (confirm(`Remove member record and revoke Gmail portal access for ${m.fullName}?`)) {
                               deleteMember(m.id);
                               addToast(`Member ${m.fullName} deleted.`, 'info');
                             }
                           }}
-                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Delete Member"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -378,7 +505,7 @@ export const AdminMembers: React.FC = () => {
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4 text-center relative">
             <button
               onClick={() => setViewingMember(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -394,22 +521,35 @@ export const AdminMembers: React.FC = () => {
               </span>
               <h3 className="text-lg font-bold text-slate-900 font-display mt-1">{viewingMember.fullName}</h3>
               <p className="text-xs text-slate-500">Brgy. {viewingMember.barangay}, Guimba</p>
+              <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                <Mail className="w-3.5 h-3.5 text-red-500" />
+                <span className="font-mono">{viewingMember.email}</span>
+              </div>
             </div>
 
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl inline-block">
-              <QRCodeSVG value={viewingMember.qrCode} size={150} />
+              <QRCodeSVG value={viewingMember.qrCode || viewingMember.memberId} size={150} />
             </div>
 
-            <p className="text-xs text-slate-500">
-              Registered Phone: {viewingMember.contactNumber}
-            </p>
-
-            <button
-              onClick={() => setViewingMember(null)}
-              className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold"
-            >
-              Close
-            </button>
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => {
+                  handleTestLoginAsMember(viewingMember);
+                  setViewingMember(null);
+                }}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Open {viewingMember.fullName}'s Portal</span>
+              </button>
+              
+              <button
+                onClick={() => setViewingMember(null)}
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -419,36 +559,55 @@ export const AdminMembers: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 my-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900 font-display">
-                {editingMember ? 'Edit Member Record' : 'Register New Youth Member'}
-              </h3>
-              <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 font-display">
+                  {editingMember ? 'Edit User & Member Access' : 'Add User for Member Portal'}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Enter member details and Gmail to grant access to the Member Portal.
+                </p>
+              </div>
+              <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleFormSubmit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                  />
+            <form onSubmit={handleFormSubmit} className="space-y-3.5">
+              {/* Member Full Name */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Juan Dela Cruz"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+
+              {/* Gmail / Official Email & Portal Access Callout */}
+              <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-blue-950 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-red-500" />
+                    <span>Member Gmail Address (For Portal Login) *</span>
+                  </label>
+                  <span className="text-[10px] text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full font-bold">
+                    OAuth / Sign-In
+                  </span>
                 </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Email *</label>
-                  <input
-                    type="email"
-                    required
-                    value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                  />
-                </div>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. juan.delacruz@gmail.com"
+                  value={formEmail}
+                  onChange={(e) => setFormEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono"
+                />
+                <p className="text-[11px] text-blue-800 leading-tight">
+                  The user can sign in using this Gmail address or 1-Click Google Sign-In to open their Member Portal, view events, certificates, and their personal QR Pass.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -457,7 +616,7 @@ export const AdminMembers: React.FC = () => {
                   <select
                     value={formBarangay}
                     onChange={(e) => setFormBarangay(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none"
                   >
                     {GUIMBA_BARANGAYS.map((b) => (
                       <option key={b} value={b}>Brgy. {b}</option>
@@ -470,7 +629,8 @@ export const AdminMembers: React.FC = () => {
                     type="tel"
                     value={formContact}
                     onChange={(e) => setFormContact(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+                    placeholder="+63 917 000 0000"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900"
                   />
                 </div>
               </div>
@@ -498,14 +658,14 @@ export const AdminMembers: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Status</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Membership Status</label>
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value as any)}
                     className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
                   >
-                    <option value="Active">Active</option>
-                    <option value="Pending">Pending</option>
+                    <option value="Active">Active (Instant Access)</option>
+                    <option value="Pending">Pending Review</option>
                     <option value="Inactive">Inactive</option>
                   </select>
                 </div>
@@ -513,11 +673,12 @@ export const AdminMembers: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Position</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Position / Role</label>
                   <input
                     type="text"
                     value={formPosition}
                     onChange={(e) => setFormPosition(e.target.value)}
+                    placeholder="Youth Member / Coordinator"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
                   />
                 </div>
@@ -527,6 +688,7 @@ export const AdminMembers: React.FC = () => {
                     type="text"
                     value={formCommittee}
                     onChange={(e) => setFormCommittee(e.target.value)}
+                    placeholder="General Youth Volunteer"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
                   />
                 </div>
@@ -538,15 +700,16 @@ export const AdminMembers: React.FC = () => {
                   type="text"
                   value={formAddress}
                   onChange={(e) => setFormAddress(e.target.value)}
+                  placeholder="Purok 1, Sitio, Landmark"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors mt-2"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors mt-2 shadow-md shadow-blue-500/20 cursor-pointer"
               >
-                {editingMember ? 'Save Member Updates' : 'Complete Registration'}
+                {editingMember ? 'Save Member Updates' : 'Add User & Authorize Gmail Portal Access'}
               </button>
             </form>
           </div>

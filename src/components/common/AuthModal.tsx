@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { GUIMBA_BARANGAYS } from '../../data/mockData';
 import { PagasaLogo } from './PagasaLogo';
-import { X, Lock, Mail, User, Phone, Calendar, Shield, ArrowRight, CheckCircle2, Loader2, Sparkles, KeyRound } from 'lucide-react';
+import { X, Lock, Mail, User, Phone, Calendar, Shield, ArrowRight, CheckCircle2, Loader2, Sparkles, KeyRound, Check, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 
@@ -16,8 +16,8 @@ export const AuthModal: React.FC = () => {
     signUpWithSupabase,
     resetUserPassword,
     loginWithGoogle,
-    switchRole,
-    isSupabaseConfigured
+    members,
+    switchRole
   } = useApp();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,18 +25,6 @@ export const AuthModal: React.FC = () => {
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotStatus, setForgotStatus] = useState<'idle' | 'loading' | 'success'>('idle');
-
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true);
-    try {
-      const success = await loginWithGoogle();
-      if (success) {
-        setIsAuthModalOpen(false);
-      }
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  };
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -62,14 +50,26 @@ export const AuthModal: React.FC = () => {
 
   if (!isAuthModalOpen) return null;
 
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    try {
+      const success = await loginWithGoogle();
+      if (success) {
+        setIsAuthModalOpen(false);
+      }
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginEmail.trim() || !loginPassword.trim()) return;
+    if (!loginEmail.trim()) return;
 
     setIsSubmitting(true);
     try {
       const targetRole = authModalMode === 'admin-login' ? 'SUPER_ADMIN' : 'MEMBER';
-      const res = await loginWithSupabase(loginEmail, loginPassword, targetRole, loginFullName);
+      const res = await loginWithSupabase(loginEmail.trim(), loginPassword || 'pagasa2026', targetRole, loginFullName);
       if (res.success) {
         setIsAuthModalOpen(false);
       }
@@ -80,35 +80,34 @@ export const AuthModal: React.FC = () => {
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regFullName.trim() || !regEmail.trim() || !regContact.trim() || !regPassword.trim()) return;
+    if (!regFullName.trim() || !regEmail.trim() || !regContact.trim()) return;
 
     setIsSubmitting(true);
     try {
-      // Calculate approximate age
       const birthYear = new Date(regBirthdate).getFullYear();
       const currentYear = 2026;
       const calculatedAge = Math.max(15, currentYear - birthYear);
 
-      const res = await signUpWithSupabase(regEmail, regPassword, {
-        fullName: regFullName,
-        email: regEmail,
+      const res = await signUpWithSupabase(regEmail, regPassword || 'pagasa2026', {
+        fullName: regFullName.trim(),
+        email: regEmail.trim().toLowerCase(),
         contactNumber: regContact,
         birthdate: regBirthdate,
         age: calculatedAge,
         gender: regGender,
-        address: regAddress || `Purok 2, Brgy. ${regBarangay}`,
+        address: regAddress || `Purok 1, Brgy. ${regBarangay}, Guimba`,
         barangay: regBarangay,
         educationalStatus: regEducation,
-        occupation: regOccupation || 'Student',
+        occupation: regOccupation || 'Youth Member / Student',
         profilePicture: regGender === 'Female' 
           ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
           : 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
-        membershipStatus: 'Pending',
+        membershipStatus: 'Active',
         organizationPosition: 'Youth Member',
         committee: 'General Youth Volunteer',
         emergencyContact: {
-          name: regEmergencyName || 'Family Member',
-          relationship: regEmergencyRel || 'Parent',
+          name: regEmergencyName || 'Family Contact',
+          relationship: regEmergencyRel || 'Parent / Guardian',
           contactNumber: regEmergencyContact || regContact
         }
       });
@@ -139,11 +138,6 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const quickDemoLogin = (role: 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER') => {
-    switchRole(role);
-    setIsAuthModalOpen(false);
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto no-print">
       <motion.div
@@ -153,7 +147,7 @@ export const AuthModal: React.FC = () => {
         className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-6"
       >
         {/* Header Bar */}
-        <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-sky-800 p-6 text-white relative">
+        <div className="bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-900 p-6 text-white relative">
           <button
             onClick={() => {
               setIsAuthModalOpen(false);
@@ -175,14 +169,14 @@ export const AuthModal: React.FC = () => {
                   PAGASA Guimba MIS
                 </span>
                 <span className="text-[10px] bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 px-2 py-0.2 rounded-full font-bold">
-                  Official Portal
+                  Gmail Portal Access
                 </span>
               </div>
               <h2 className="text-xl font-display font-bold">
                 {showForgotModal ? 'Reset Portal Password' :
-                  regSuccessMemberId ? 'Registration Received!' : 
-                  authModalMode === 'admin-login' ? 'Administrator Portal Access' :
-                  authModalMode === 'login' ? 'Member Portal Sign In' : 'Youth Membership Application'}
+                  regSuccessMemberId ? 'Registration Complete!' : 
+                  authModalMode === 'admin-login' ? 'Administrator Sign In' :
+                  authModalMode === 'login' ? 'Member Portal Sign In' : 'Youth Membership Registration'}
               </h2>
             </div>
           </div>
@@ -200,7 +194,7 @@ export const AuthModal: React.FC = () => {
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
                 <h4 className="font-bold text-slate-900 text-sm">Reset Instructions Sent</h4>
                 <p className="text-xs text-slate-600">
-                  We've sent a password reset link to <strong>{forgotEmail}</strong>. Please check your inbox and spam folder.
+                  We've sent password reset instructions for <strong>{forgotEmail}</strong>.
                 </p>
                 <button
                   type="button"
@@ -208,7 +202,7 @@ export const AuthModal: React.FC = () => {
                     setShowForgotModal(false);
                     setForgotStatus('idle');
                   }}
-                  className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all"
+                  className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
                 >
                   Return to Sign In
                 </button>
@@ -216,11 +210,11 @@ export const AuthModal: React.FC = () => {
             ) : (
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Enter your registered account email and we'll send password recovery instructions.
+                  Enter your registered account Gmail and we'll send password recovery instructions.
                 </p>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Account Email Address
+                    Account Gmail Address
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -229,7 +223,7 @@ export const AuthModal: React.FC = () => {
                       required
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="your.email@example.com"
+                      placeholder="your.email@gmail.com"
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
                     />
                   </div>
@@ -241,12 +235,12 @@ export const AuthModal: React.FC = () => {
                     className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {forgotStatus === 'loading' && <Loader2 className="w-4 h-4 animate-spin" />}
-                    <span>Send Reset Link</span>
+                    <span>Send Reset Instructions</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(false)}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold"
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -260,16 +254,16 @@ export const AuthModal: React.FC = () => {
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-9 h-9" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900">Application Submitted!</h3>
+            <h3 className="text-xl font-bold text-slate-900">Member Account Ready!</h3>
             <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-              Mabuhay! Your youth membership registration has been received and assigned Member ID:
+              Mabuhay! Your youth membership registration is active. Your assigned Member ID is:
             </p>
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl inline-block font-mono font-bold text-blue-800 text-lg">
               {regSuccessMemberId}
             </div>
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 text-left max-w-md mx-auto">
-              <p className="font-semibold mb-0.5">Status: Pending Verification</p>
-              Your account has been enrolled. You can log in using your registered email and password.
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 text-left max-w-md mx-auto">
+              <p className="font-semibold mb-0.5">Gmail Portal Access Enabled</p>
+              You can now sign in using your registered Gmail address or 1-click Google OAuth.
             </div>
             <div className="pt-4 flex gap-3 justify-center">
               <button
@@ -279,7 +273,7 @@ export const AuthModal: React.FC = () => {
                 }}
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md cursor-pointer"
               >
-                Proceed to Login
+                Proceed to Member Portal
               </button>
               <button
                 onClick={() => {
@@ -304,7 +298,7 @@ export const AuthModal: React.FC = () => {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Member Login
+                Member Portal
               </button>
               <button
                 onClick={() => setAuthModalMode('admin-login')}
@@ -314,7 +308,7 @@ export const AuthModal: React.FC = () => {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Admin Login
+                Admin Portal
               </button>
               <button
                 onClick={() => setAuthModalMode('register')}
@@ -331,19 +325,44 @@ export const AuthModal: React.FC = () => {
             {/* Login Form (Member or Admin) */}
             {(authModalMode === 'login' || authModalMode === 'admin-login') && (
               <form onSubmit={handleLoginSubmit} className="space-y-4">
+                {/* 1-Click Google Sign In */}
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={isGoogleLoading}
+                  className="w-full py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-2.5 shadow-sm disabled:opacity-60 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  </svg>
+                  <span>{isGoogleLoading ? 'Verifying Google Account...' : 'Continue with Google (Instant Gmail Sign-In)'}</span>
+                </button>
+
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200"></div>
+                  </div>
+                  <div className="relative flex justify-center text-[11px] uppercase">
+                    <span className="bg-white px-3 text-slate-400 font-semibold tracking-wider">Or enter Gmail / Member ID</span>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    {authModalMode === 'admin-login' ? 'Admin Official Email' : 'Member Registered Email'}
+                    {authModalMode === 'admin-login' ? 'Admin Official Email' : 'Registered Gmail Address or Member ID'}
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
-                      type="email"
+                      type="text"
                       required
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder={authModalMode === 'admin-login' ? 'giancarlomagat2104@gmail.com' : 'giancarlomagat2104@gmail.com'}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      placeholder={authModalMode === 'admin-login' ? 'giancarlomagat2104@gmail.com' : 'e.g. yourname@gmail.com or PAGASA-2026-0001'}
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all font-mono"
                     />
                   </div>
                 </div>
@@ -351,9 +370,9 @@ export const AuthModal: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-semibold text-slate-700">
-                      Your Full Name
+                      Full Name
                     </label>
-                    <span className="text-[10px] text-slate-400 font-medium">Optional (Auto-detected if blank)</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Optional (Auto-filled from roster)</span>
                   </div>
                   <div className="relative">
                     <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -369,16 +388,15 @@ export const AuthModal: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Password
+                    Passcode / Password
                   </label>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="password"
-                      required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="••••••••••••"
+                      placeholder="Enter password or default (pagasa2026)"
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
                     />
                   </div>
@@ -415,35 +433,10 @@ export const AuthModal: React.FC = () => {
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
-                      <span>Sign In to Portal</span>
+                      <span>{authModalMode === 'admin-login' ? 'Sign In as Administrator' : 'Sign In to Member Portal'}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
-                </button>
-
-                {/* Google Sign In via Supabase */}
-                <div className="relative my-3">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-200"></div>
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-slate-400 font-medium">Or continue with</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={isGoogleLoading}
-                  className="w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-60 cursor-pointer"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                  </svg>
-                  <span>{isGoogleLoading ? 'Connecting OAuth...' : 'Sign In with Google (OAuth)'}</span>
                 </button>
               </form>
             )}
@@ -471,7 +464,7 @@ export const AuthModal: React.FC = () => {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Email Address *
+                      Gmail Address *
                     </label>
                     <div className="relative">
                       <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -636,7 +629,7 @@ export const AuthModal: React.FC = () => {
                 </div>
 
                 <div className="text-[11px] text-slate-500">
-                  By registering, an official Supabase Auth user and PAGASA Guimba youth profile will be established.
+                  By registering, your account will be added to the PAGASA Guimba youth roster with instant portal access.
                 </div>
 
                 <button
@@ -648,7 +641,7 @@ export const AuthModal: React.FC = () => {
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
-                      <span>Submit Membership Application</span>
+                      <span>Complete Youth Registration</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}

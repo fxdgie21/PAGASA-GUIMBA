@@ -33,7 +33,7 @@ export const Footer: React.FC = () => {
 
             <div className="pt-2 flex items-center gap-3">
               <a
-                href={settings.socialLinks.facebook}
+                href={settings.socialLinks?.facebook || settings.facebookUrl || 'https://facebook.com/pagasaguimbayouth'}
                 target="_blank"
                 rel="noreferrer"
                 className="w-8 h-8 rounded-xl bg-slate-900 hover:bg-blue-600 hover:text-white flex items-center justify-center text-slate-300 transition-colors border border-slate-800"
@@ -41,7 +41,7 @@ export const Footer: React.FC = () => {
                 <Facebook className="w-4 h-4" />
               </a>
               <a
-                href={settings.socialLinks.instagram}
+                href={settings.socialLinks?.instagram || settings.instagramUrl || 'https://instagram.com/pagasaguimbayouth'}
                 target="_blank"
                 rel="noreferrer"
                 className="w-8 h-8 rounded-xl bg-slate-900 hover:bg-pink-600 hover:text-white flex items-center justify-center text-slate-300 transition-colors border border-slate-800"
@@ -49,7 +49,7 @@ export const Footer: React.FC = () => {
                 <Instagram className="w-4 h-4" />
               </a>
               <a
-                href={settings.socialLinks.youtube}
+                href={settings.socialLinks?.youtube || settings.youtubeUrl || 'https://youtube.com/@pagasaguimbayouth'}
                 target="_blank"
                 rel="noreferrer"
                 className="w-8 h-8 rounded-xl bg-slate-900 hover:bg-rose-600 hover:text-white flex items-center justify-center text-slate-300 transition-colors border border-slate-800"

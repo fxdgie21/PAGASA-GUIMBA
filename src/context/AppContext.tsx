@@ -915,16 +915,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (updates.avatar || updates.name) {
-      setMembers(prev => prev.map(m => {
-        if (m.id === currentUser?.id || m.memberId === currentUser?.memberId || (currentUser?.email && m.email.toLowerCase() === currentUser.email.toLowerCase())) {
-          return {
-            ...m,
-            ...(updates.avatar ? { profilePicture: updates.avatar } : {}),
-            ...(updates.name ? { fullName: updates.name } : {})
-          };
-        }
-        return m;
-      }));
+      setMembers(prev => {
+        const updatedList = prev.map(m => {
+          if (
+            (currentUser?.id && m.id === currentUser.id) || 
+            (currentUser?.memberId && m.memberId === currentUser.memberId) || 
+            (currentUser?.email && m.email.toLowerCase() === currentUser.email.toLowerCase())
+          ) {
+            return {
+              ...m,
+              ...(updates.avatar ? { profilePicture: updates.avatar } : {}),
+              ...(updates.name ? { fullName: updates.name } : {})
+            };
+          }
+          return m;
+        });
+        storageService.saveMembers(updatedList);
+        return updatedList;
+      });
     }
 
     logAuditEvent('Updated User Profile', 'Settings', `User ${updates.name || currentUser?.name || 'Account'} updated profile details.`);
@@ -1022,13 +1030,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateMember = (id: string, updates: Partial<Member>) => {
-    setMembers(prev => prev.map(m => {
-      if (m.id === id) {
-        return { ...m, ...updates };
-      }
-      return m;
-    }));
-    if (currentUser && (currentUser.id === id || currentUser.memberId === updates.memberId || (updates.email && currentUser.email.toLowerCase() === currentUser.email.toLowerCase()))) {
+    setMembers(prev => {
+      const updatedList = prev.map(m => {
+        if (m.id === id || m.memberId === id) {
+          return { ...m, ...updates };
+        }
+        return m;
+      });
+      storageService.saveMembers(updatedList);
+      return updatedList;
+    });
+
+    if (currentUser && (currentUser.id === id || currentUser.memberId === id || currentUser.memberId === updates.memberId || (currentUser.email && updates.email && currentUser.email.toLowerCase() === updates.email.toLowerCase()))) {
       setCurrentUser(prev => {
         if (!prev) return null;
         const updatedUser = {
@@ -1040,7 +1053,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return updatedUser;
       });
     }
-    const target = members.find(m => m.id === id);
+    const target = members.find(m => m.id === id || m.memberId === id);
     logAuditEvent('Updated Member Profile', 'Members', `Updated profile of ${target?.fullName || id}.`);
     showToast('success', 'Member Updated', 'Member details saved successfully.');
   };
