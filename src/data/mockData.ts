@@ -96,6 +96,13 @@ export const INITIAL_SETTINGS: OrganizationSettings = {
   allowPublicEventRegistration: true
 };
 
+export const ADMIN_MASTER_CREDENTIALS = {
+  username: 'PAGASA_ADMIN',
+  email: 'admin@pagasaguimba.org',
+  password: 'TayoAngPagasa2026',
+  displayName: 'Gian Carlo Magat (PAGASA Admin)'
+};
+
 export const INITIAL_USERS: User[] = [
   {
     id: 'usr-admin-1',

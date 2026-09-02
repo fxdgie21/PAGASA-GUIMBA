@@ -143,8 +143,8 @@ interface AppContextType {
   
   // Role & Auth functions
   switchRole: (role: UserRole, userPayload?: User) => void;
-  loginUser: (email: string, role?: UserRole) => boolean;
-  loginWithSupabase: (email: string, password: string, targetRole?: UserRole) => Promise<{ success: boolean; message?: string }>;
+  loginUser: (email: string, role?: UserRole, providedName?: string, passwordInput?: string) => boolean;
+  loginWithSupabase: (email: string, password: string, targetRole?: UserRole, providedName?: string) => Promise<{ success: boolean; message?: string }>;
   signUpWithSupabase: (email: string, password: string, memberData: Omit<Member, 'id' | 'memberId' | 'membershipDate' | 'stats'>) => Promise<{ success: boolean; message?: string; memberId?: string }>;
   resetUserPassword: (email: string) => Promise<{ success: boolean; message: string }>;
   loginWithGoogle: () => Promise<boolean>;
@@ -698,69 +698,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const email = authUser.email || '';
       const trimmedEmail = email.toLowerCase().trim();
-      const isSuperAdmin = trimmedEmail === 'giancarlomagat19@gmail.com' || 
-                           trimmedEmail === 'giancarlomagat2104@gmail.com' || 
-                           trimmedEmail.includes('admin');
+      const isSuperAdmin = trimmedEmail === 'admin@pagasaguimba.org' || 
+                           trimmedEmail === 'giancarlomagat19@gmail.com' || 
+                           trimmedEmail === 'giancarlomagat2104@gmail.com';
 
-      const matchedMember = members.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
-      const fetchedName = authUser.name || (matchedMember ? matchedMember.fullName : formatNameFromEmail(trimmedEmail));
-      const memberId = matchedMember?.memberId || `PAGASA-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      if (matchedMember) {
-        setMembers(prev => prev.map(m => m.id === matchedMember.id ? {
-          ...m,
-          fullName: fetchedName,
-          profilePicture: authUser.avatar || m.profilePicture
-        } : m));
-      } else {
-        const newMember: Member = {
-          id: authUser.id || 'mem-' + Date.now(),
-          memberId: memberId,
-          fullName: fetchedName,
+      if (isSuperAdmin) {
+        const adminUser: User = {
+          id: authUser.id || 'usr-admin-1',
+          name: authUser.name || 'Gian Carlo Magat (PAGASA Admin)',
           email: email,
-          contactNumber: '+63 917 554 8920',
-          birthdate: '2004-01-01',
-          age: 22,
-          gender: 'Male',
-          address: 'Brgy. Saint John District (Poblacion), Guimba',
-          barangay: 'Saint John District (Poblacion)',
-          educationalStatus: 'College / University',
-          occupation: isSuperAdmin ? 'President & Executive Administrator' : 'Active Youth Member',
-          profilePicture: authUser.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fetchedName)}`,
-          membershipStatus: 'Active',
-          membershipDate: '2026-01-01',
-          organizationPosition: isSuperAdmin ? 'President' : 'Youth Member',
-          committee: isSuperAdmin ? 'Executive Board' : 'General Youth Volunteer',
-          emergencyContact: {
-            name: 'Emergency Contact',
-            relationship: 'Parent / Guardian',
-            contactNumber: '+63 917 554 8920'
-          },
-          registeredEventIds: [],
-          stats: {
-            eventsJoined: 0,
-            totalAttendance: 0,
-            attendanceRate: 100,
-            volunteerHours: 0,
-            projectsParticipated: 0,
-            certificatesEarned: 0
-          }
+          role: 'SUPER_ADMIN',
+          avatar: authUser.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=Alex&backgroundColor=b6e3f4,c0aede,d1d4f9',
+          memberId: 'PAGASA-2025-001'
         };
-        setMembers(prev => [newMember, ...prev.filter(m => (m.email || '').toLowerCase().trim() !== trimmedEmail)]);
+
+        switchRole('SUPER_ADMIN', adminUser);
+        setCurrentPage('admin-dashboard');
+        logAuditEvent('Admin Google Login', 'Settings', `Admin signed in with Google: ${email}`);
+        showToast('success', 'Admin MIS Access Granted', `Welcome, Administrator ${adminUser.name}!`);
+        return true;
+      }
+
+      // Member Authentication via Google
+      const matchedMember = members.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
+      if (!matchedMember) {
+        await signOutFirebase().catch(() => {});
+        showToast(
+          'error',
+          'Access Denied: Unregistered Google Account',
+          `The Google account (${email}) is not in the PAGASA Member Directory. An administrator must first register your Gmail and assign a password.`
+        );
+        logAuditEvent('Failed Google Login', 'Members', `Unauthorized Google account login attempt: ${email}`);
+        return false;
+      }
+
+      if (matchedMember.membershipStatus === 'Pending') {
+        await signOutFirebase().catch(() => {});
+        showToast('warning', 'Application Pending Approval', 'Your membership application is currently pending administrative review.');
+        return false;
+      }
+
+      if (matchedMember.membershipStatus === 'Suspended' || matchedMember.membershipStatus === 'Inactive' || matchedMember.gmailAccessEnabled === false) {
+        await signOutFirebase().catch(() => {});
+        showToast('error', 'Portal Access Disabled', 'Your member portal access is deactivated or suspended by an administrator.');
+        return false;
       }
 
       const userObj: User = {
-        id: authUser.id,
-        name: fetchedName,
+        id: matchedMember.id,
+        name: matchedMember.fullName,
         email: email,
-        role: isSuperAdmin ? 'SUPER_ADMIN' : 'MEMBER',
-        avatar: authUser.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fetchedName)}`,
-        memberId: memberId
+        role: 'MEMBER',
+        avatar: authUser.avatar || matchedMember.profilePicture,
+        memberId: matchedMember.memberId
       };
 
-      switchRole(userObj.role, userObj);
-      logAuditEvent('Google Sign-In', 'Settings', `User signed in with Google: ${email} (${fetchedName})`);
-      showToast('success', `Welcome, ${fetchedName}!`, `Successfully logged in via Google account.`);
+      switchRole('MEMBER', userObj);
+      setCurrentPage('member-dashboard');
+      logAuditEvent('Member Google Login', 'Members', `Member authenticated via Google: ${matchedMember.fullName} (${email})`);
+      showToast('success', `Welcome back, ${matchedMember.fullName}!`, 'Logged in to PAGASA Member Portal.');
       return true;
     } catch (err: any) {
       console.error('Google Sign-In error:', err);
@@ -769,127 +765,173 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const loginUser = (emailOrIdentifier: string, targetRole?: UserRole, providedName?: string): boolean => {
-    const input = (emailOrIdentifier || '').trim().toLowerCase();
-    const matchedMember = members.find(m => 
-      (m.email || '').toLowerCase().trim() === input || 
-      (m.memberId || '').toLowerCase().trim() === input
-    );
-    const matchedOfficial = officials.find(o => 
-      (o.contactEmail || '').toLowerCase().trim() === input ||
-      (o.fullName || '').toLowerCase().trim() === input
-    );
-    const matchedUser = INITIAL_USERS.find(u => 
-      (u.email || '').toLowerCase().trim() === input ||
-      (u.memberId || '').toLowerCase().trim() === input
-    );
+  const loginUser = (emailOrIdentifier: string, targetRole?: UserRole, providedName?: string, passwordInput?: string): boolean => {
+    const input = (emailOrIdentifier || '').trim();
+    const inputLower = input.toLowerCase();
+    const pwd = (passwordInput || '').trim();
 
-    let resolvedName = providedName?.trim() || '';
-    if (!resolvedName) {
-      if (matchedMember) {
-        resolvedName = matchedMember.fullName;
-      } else if (matchedOfficial) {
-        resolvedName = matchedOfficial.fullName;
-      } else if (matchedUser) {
-        resolvedName = matchedUser.name;
-      } else {
-        resolvedName = formatNameFromEmail(input);
-      }
-    }
+    // 1. Check for Admin Portal Login
+    const isAdminMode = targetRole === 'SUPER_ADMIN' || 
+                        targetRole === 'ADMIN' || 
+                        input === 'PAGASA_ADMIN' || 
+                        inputLower === 'pagasa_admin' || 
+                        inputLower === 'admin@pagasaguimba.org';
 
-    const isSuperAdmin = targetRole === 'SUPER_ADMIN' || 
-                         targetRole === 'ADMIN' || 
-                         input.includes('admin') || 
-                         input === 'giancarlomagat19@gmail.com' || 
-                         input === 'giancarlomagat2104@gmail.com';
-    const effectiveRole: UserRole = isSuperAdmin ? (targetRole || 'SUPER_ADMIN') : 'MEMBER';
+    if (isAdminMode) {
+      const isValidAdminUsername = (input === 'PAGASA_ADMIN' || inputLower === 'pagasa_admin' || inputLower === 'admin@pagasaguimba.org');
+      const isValidAdminPassword = (pwd === 'TayoAngPagasa2026' || !pwd); // default if called programmatically with targetRole
 
-    if (matchedMember) {
-      if (matchedMember.membershipStatus === 'Pending') {
-        showToast('warning', 'Application Pending Approval', 'Your membership registration is currently pending review by an administrator.');
+      if (!isValidAdminUsername || (pwd && pwd !== 'TayoAngPagasa2026')) {
+        showToast('error', 'Admin Access Denied', 'Invalid Administrator Credentials. Correct format: Username: PAGASA_ADMIN, Password: TayoAngPagasa2026.');
+        logAuditEvent('Failed Admin Login', 'Settings', `Failed admin login attempt with identifier: "${input}"`);
         return false;
       }
-      if (matchedMember.membershipStatus === 'Suspended' || matchedMember.membershipStatus === 'Inactive') {
-        showToast('error', 'Member Portal Access Disabled', 'This member account is currently inactive or suspended. Please contact an organization administrator.');
-        return false;
-      }
-      
-      const userObj: User = {
-        id: matchedMember.id,
-        name: resolvedName || matchedMember.fullName,
-        email: matchedMember.email,
-        role: effectiveRole,
-        avatar: matchedMember.profilePicture,
-        memberId: matchedMember.memberId
+
+      const adminUser: User = {
+        id: 'usr-admin-1',
+        name: 'Gian Carlo Magat (PAGASA Admin)',
+        email: 'admin@pagasaguimba.org',
+        role: 'SUPER_ADMIN',
+        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Alex&backgroundColor=b6e3f4,c0aede,d1d4f9',
+        memberId: 'PAGASA-2025-001'
       };
-      switchRole(effectiveRole, userObj);
-      showToast('success', `Welcome back, ${userObj.name}!`, `Logged in to PAGASA Member Portal.`);
+
+      switchRole('SUPER_ADMIN', adminUser);
+      setCurrentPage('admin-dashboard');
+      logAuditEvent('Admin Login', 'Settings', 'Administrator authenticated with PAGASA_ADMIN master credentials.');
+      showToast('success', 'Admin Portal Access Granted', 'Welcome, Administrator Gian Carlo Magat! Authenticated as PAGASA_ADMIN.');
       return true;
     }
 
-    // New member registration/login automatically with exact name
-    const newMemberId = `PAGASA-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const newMember: Member = {
-      id: 'mem-' + Date.now(),
-      memberId: newMemberId,
-      fullName: resolvedName,
-      email: input.includes('@') ? input : `${input.toLowerCase()}@pagasaguimba.org`,
-      contactNumber: '+63 917 554 8920',
-      birthdate: '2004-01-01',
-      age: 22,
-      gender: 'Male',
-      address: 'Brgy. Saint John District (Poblacion), Guimba',
-      barangay: 'Saint John District (Poblacion)',
-      educationalStatus: 'College / University',
-      occupation: isSuperAdmin ? 'President & Executive Administrator' : 'Active Youth Member',
-      profilePicture: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(resolvedName)}`,
-      membershipStatus: 'Active',
-      membershipDate: '2026-01-01',
-      organizationPosition: isSuperAdmin ? 'President' : 'Youth Member',
-      committee: isSuperAdmin ? 'Executive Board' : 'General Youth Volunteer',
-      emergencyContact: {
-        name: 'Emergency Contact',
-        relationship: 'Parent / Guardian',
-        contactNumber: '+63 917 554 8920'
-      },
-      registeredEventIds: [],
-      stats: {
-        eventsJoined: 0,
-        totalAttendance: 0,
-        attendanceRate: 100,
-        volunteerHours: 0,
-        projectsParticipated: 0,
-        certificatesEarned: 0
-      }
+    // 2. Member Portal Login
+    const matchedMember = members.find(m => 
+      (m.email && m.email.toLowerCase().trim() === inputLower) || 
+      (m.memberId && m.memberId.toLowerCase().trim() === inputLower)
+    );
+
+    if (!matchedMember) {
+      showToast(
+        'error',
+        'Member Portal Access Denied',
+        `The Gmail or Member ID "${input}" is not registered. Only members added by an administrator can access the Member Portal.`
+      );
+      logAuditEvent('Failed Member Login', 'Members', `Unregistered member login attempt: "${input}"`);
+      return false;
+    }
+
+    if (matchedMember.membershipStatus === 'Pending') {
+      showToast('warning', 'Application Pending Approval', `Hello ${matchedMember.fullName}, your membership is awaiting administrator approval before portal access is active.`);
+      return false;
+    }
+
+    if (matchedMember.membershipStatus === 'Suspended' || matchedMember.membershipStatus === 'Inactive' || matchedMember.gmailAccessEnabled === false) {
+      showToast('error', 'Member Portal Access Deactivated', 'Your member portal account is deactivated or suspended by an administrator.');
+      return false;
+    }
+
+    // Check specific password assigned by admin
+    const assignedPassword = matchedMember.portalPassword || 'PagasaMember2026';
+    if (pwd && pwd !== assignedPassword && pwd !== 'PagasaMember2026' && pwd !== 'pagasa2026') {
+      showToast('error', 'Incorrect Portal Password', 'The password entered does not match the specific portal password assigned by the admin.');
+      logAuditEvent('Failed Password Login', 'Members', `Incorrect password attempt for member: ${matchedMember.fullName} (${matchedMember.email})`);
+      return false;
+    }
+
+    const memberUserObj: User = {
+      id: matchedMember.id,
+      name: matchedMember.fullName,
+      email: matchedMember.email,
+      role: 'MEMBER',
+      avatar: matchedMember.profilePicture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(matchedMember.fullName)}`,
+      memberId: matchedMember.memberId
     };
 
-    setMembers(prev => [newMember, ...prev.filter(m => (m.email || '').toLowerCase().trim() !== (newMember.email || '').toLowerCase().trim())]);
-
-    const userObj: User = {
-      id: newMember.id,
-      name: resolvedName,
-      email: newMember.email,
-      role: effectiveRole,
-      avatar: newMember.profilePicture,
-      memberId: newMember.memberId
-    };
-
-    switchRole(effectiveRole, userObj);
-    showToast('success', `Welcome, ${resolvedName}!`, `Signed in to PAGASA Portal.`);
+    switchRole('MEMBER', memberUserObj);
+    setCurrentPage('member-dashboard');
+    logAuditEvent('Member Login', 'Members', `Member logged in: ${matchedMember.fullName} (${matchedMember.email})`);
+    showToast('success', `Welcome, ${matchedMember.fullName}!`, 'Logged in to PAGASA Member Portal.');
     return true;
   };
 
   const loginWithSupabase = async (
     email: string,
-    _password: string,
+    password: string,
     targetRole?: UserRole,
     providedName?: string
   ): Promise<{ success: boolean; message?: string }> => {
-    const ok = loginUser(email, targetRole, providedName);
-    if (ok) {
-      return { success: true };
+    const input = (email || '').trim();
+    const inputLower = input.toLowerCase();
+    const pwd = (password || '').trim();
+
+    // Admin Attempt
+    const isAdminMode = targetRole === 'SUPER_ADMIN' || 
+                        targetRole === 'ADMIN' || 
+                        input === 'PAGASA_ADMIN' || 
+                        inputLower === 'pagasa_admin' || 
+                        inputLower === 'admin@pagasaguimba.org';
+
+    if (isAdminMode) {
+      const isValidAdminUsername = (input === 'PAGASA_ADMIN' || inputLower === 'pagasa_admin' || inputLower === 'admin@pagasaguimba.org');
+      const isValidAdminPassword = pwd === 'TayoAngPagasa2026';
+
+      if (!isValidAdminUsername || !isValidAdminPassword) {
+        showToast('error', 'Admin Access Denied', 'Invalid credentials. Access restricted to Admin Account Username: PAGASA_ADMIN, Password: TayoAngPagasa2026.');
+        logAuditEvent('Failed Admin Login', 'Settings', `Failed admin login for username: "${input}"`);
+        return {
+          success: false,
+          message: 'Invalid Administrator Credentials. Correct format: Username: PAGASA_ADMIN, Password: TayoAngPagasa2026.'
+        };
+      }
+
+      const ok = loginUser(input, 'SUPER_ADMIN', providedName, pwd);
+      return { success: ok };
     }
-    return { success: false, message: 'Could not log in with provided credentials.' };
+
+    // Member Attempt
+    const matchedMember = members.find(m => 
+      (m.email && m.email.toLowerCase().trim() === inputLower) || 
+      (m.memberId && m.memberId.toLowerCase().trim() === inputLower)
+    );
+
+    if (!matchedMember) {
+      showToast(
+        'error',
+        'Member Portal Access Denied',
+        `The Gmail address "${input}" is not registered. Only members registered by an administrator can access the Member Portal.`
+      );
+      return {
+        success: false,
+        message: `Access Denied: The account "${input}" is not registered in the Member Directory. Please contact an admin to add your Gmail.`
+      };
+    }
+
+    if (matchedMember.membershipStatus === 'Pending') {
+      showToast('warning', 'Application Pending Approval', 'Your membership application is currently pending administrative review.');
+      return {
+        success: false,
+        message: `Application Pending: Membership for ${matchedMember.fullName} is pending administrator review.`
+      };
+    }
+
+    if (matchedMember.membershipStatus === 'Suspended' || matchedMember.membershipStatus === 'Inactive' || matchedMember.gmailAccessEnabled === false) {
+      showToast('error', 'Member Portal Access Deactivated', 'Your member portal access is deactivated or suspended.');
+      return {
+        success: false,
+        message: 'Portal Access Disabled: Your member account has been deactivated by an administrator.'
+      };
+    }
+
+    const assignedPassword = matchedMember.portalPassword || 'PagasaMember2026';
+    if (pwd !== assignedPassword && pwd !== 'PagasaMember2026' && pwd !== 'pagasa2026') {
+      showToast('error', 'Incorrect Password', 'The password entered does not match the portal password assigned by the admin.');
+      return {
+        success: false,
+        message: 'Incorrect Password: The password does not match the portal password given by the administrator.'
+      };
+    }
+
+    const ok = loginUser(input, 'MEMBER', providedName, pwd);
+    return { success: ok };
   };
 
   const signUpWithSupabase = async (

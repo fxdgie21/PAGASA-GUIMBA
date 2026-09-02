@@ -383,16 +383,43 @@ export const AdminAttendance: React.FC = () => {
                         {r.memberId} • Brgy. {r.memberBarangay} • {r.checkInTime}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        r.status === 'Present' ? 'bg-emerald-100 text-emerald-800' :
-                        r.status === 'Late' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {r.status}
-                      </span>
-                      <span className="block text-[9px] text-slate-400 mt-0.5">
-                        {r.method === 'QR_SCAN' ? 'QR Code' : 'Manual'}
-                      </span>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                          r.status === 'Present' ? 'bg-emerald-100 text-emerald-800' :
+                          r.status === 'Late' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {r.status}
+                        </span>
+                        <span className="block text-[9px] text-slate-400 mt-0.5">
+                          {r.method === 'QR_SCAN' ? 'QR Code' : 'Manual'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          confirmAction({
+                            title: 'Remove Attendance Record',
+                            message: `Are you sure you want to remove the attendance log for ${r.memberName}?`,
+                            confirmText: 'Delete Record',
+                            cancelText: 'Cancel',
+                            variant: 'danger',
+                            itemDetails: {
+                              label: 'Attendance Entry',
+                              value: `${r.memberName} (${r.memberId})`,
+                              subValue: `Checked in at ${r.checkInTime} • Status: ${r.status}`
+                            },
+                            onConfirm: () => {
+                              deleteAttendanceRecord(r.id);
+                              addToast(`Attendance record for ${r.memberName} deleted.`, 'info');
+                            }
+                          });
+                        }}
+                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Delete Attendance Entry"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 ))

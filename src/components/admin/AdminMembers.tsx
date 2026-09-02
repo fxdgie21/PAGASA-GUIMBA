@@ -16,6 +16,7 @@ import {
   X, 
   Check, 
   Eye,
+  EyeOff,
   Shield,
   FileSpreadsheet,
   Camera,
@@ -70,6 +71,19 @@ export const AdminMembers: React.FC = () => {
   const [formCommittee, setFormCommittee] = useState('General Youth Volunteer');
   const [formAddress, setFormAddress] = useState('');
   const [formGmailAccess, setFormGmailAccess] = useState(true);
+  const [formPortalPassword, setFormPortalPassword] = useState('PagasaMember2026');
+  const [showPasswordInModal, setShowPasswordInModal] = useState(false);
+
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let result = 'Pagasa';
+    for (let i = 0; i < 4; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    result += '2026';
+    setFormPortalPassword(result);
+    addToast(`Generated assigned member password: ${result}`, 'info');
+  };
 
   const filteredMembers = members.filter(m => {
     const matchesBarangay = selectedBarangay === 'ALL' || m.barangay === selectedBarangay;
@@ -101,6 +115,8 @@ export const AdminMembers: React.FC = () => {
     setFormCommittee('General Youth Volunteer');
     setFormAddress('');
     setFormGmailAccess(true);
+    setFormPortalPassword('PagasaMember2026');
+    setShowPasswordInModal(false);
     setIsCreateModalOpen(true);
   };
 
@@ -118,6 +134,8 @@ export const AdminMembers: React.FC = () => {
     setFormCommittee(m.committee || 'General Youth Volunteer');
     setFormAddress(m.address);
     setFormGmailAccess(m.gmailAccessEnabled !== false);
+    setFormPortalPassword(m.portalPassword || 'PagasaMember2026');
+    setShowPasswordInModal(false);
     setIsCreateModalOpen(true);
   };
 
@@ -128,6 +146,7 @@ export const AdminMembers: React.FC = () => {
     const birthYear = new Date(formBirthdate).getFullYear();
     const age = Math.max(15, 2026 - birthYear);
     const cleanedEmail = formEmail.trim().toLowerCase();
+    const assignedPassword = formPortalPassword.trim() || 'PagasaMember2026';
 
     if (editingMember) {
       updateMember(editingMember.id, {
@@ -143,7 +162,8 @@ export const AdminMembers: React.FC = () => {
         organizationPosition: formPosition,
         committee: formCommittee,
         address: formAddress,
-        gmailAccessEnabled: formGmailAccess
+        gmailAccessEnabled: formGmailAccess,
+        portalPassword: assignedPassword
       });
       addToast(`Member record for ${formName} updated. Gmail Portal Access: ${formStatus === 'Active' ? 'Enabled' : 'Pending'}`, 'success');
     } else {
@@ -165,13 +185,14 @@ export const AdminMembers: React.FC = () => {
         organizationPosition: formPosition,
         committee: formCommittee,
         gmailAccessEnabled: formGmailAccess,
+        portalPassword: assignedPassword,
         emergencyContact: {
           name: 'Family Contact',
           relationship: 'Parent / Guardian',
           contactNumber: formContact
         }
       });
-      addToast(`Added new member ${formName} (${newMember.memberId}). User can now log in to the Member Portal with Gmail: ${cleanedEmail}`, 'success');
+      addToast(`Added new member ${formName} (${newMember.memberId})! Authorized Gmail: ${cleanedEmail} | Password: ${assignedPassword}`, 'success');
     }
 
     setIsCreateModalOpen(false);
@@ -183,11 +204,20 @@ export const AdminMembers: React.FC = () => {
   };
 
   const handleCopyCredentials = (m: Member) => {
-    const message = `MABUHAY! You have been registered in the PAGASA Guimba Youth MIS.\n\nName: ${m.fullName}\nMember ID: ${m.memberId}\nBarangay: Brgy. ${m.barangay}\nAuthorized Gmail: ${m.email}\nStatus: ${m.membershipStatus}\n\nYou can access your Member Portal, Digital QR Pass, and Certificates by logging in with your Gmail at: ${window.location.origin}`;
+    const password = m.portalPassword || 'PagasaMember2026';
+    const message = `🇵🇭 PAGASA GUIMBA YOUTH MIS - MEMBER PORTAL CREDENTIALS\n\n` +
+      `Mabuhay, ${m.fullName}!\n` +
+      `An administrator has registered your authorized account in the PAGASA Member Portal.\n\n` +
+      `🔗 Portal Access URL: ${window.location.origin}\n` +
+      `👤 Member ID: ${m.memberId}\n` +
+      `📧 Authorized Gmail: ${m.email}\n` +
+      `🔑 Given Password: ${password}\n` +
+      `📍 Barangay: Brgy. ${m.barangay}\n\n` +
+      `You can now sign in using your Gmail and the given password above to view official events, claim e-certificates, and present your Digital QR ID.`;
     
     if (navigator.clipboard) {
       navigator.clipboard.writeText(message);
-      addToast(`Copied portal invitation & Gmail login details for ${m.fullName}!`, 'success');
+      addToast(`Copied portal invitation & Gmail credentials for ${m.fullName}!`, 'success');
     }
   };
 
@@ -412,9 +442,15 @@ export const AdminMembers: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5 font-mono">
-                            <Mail className="w-3 h-3 text-red-500 flex-shrink-0" />
-                            <span className="text-blue-700 font-semibold">{m.email}</span>
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mt-1 font-mono">
+                            <div className="flex items-center gap-1 text-blue-700 font-semibold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                              <Mail className="w-3 h-3 text-red-500 flex-shrink-0" />
+                              <span>{m.email}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-slate-700 font-semibold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200" title="Assigned Member Portal Password">
+                              <Lock className="w-2.5 h-2.5 text-blue-600 flex-shrink-0" />
+                              <span>Pwd: <strong className="text-slate-900">{m.portalPassword || 'PagasaMember2026'}</strong></span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -621,7 +657,45 @@ export const AdminMembers: React.FC = () => {
                   className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono"
                 />
                 <p className="text-[11px] text-blue-800 leading-tight">
-                  The user can sign in using this Gmail address or 1-Click Google Sign-In to open their Member Portal, view events, certificates, and their personal QR Pass.
+                  The user will use this specific Gmail address to access their private Member Portal.
+                </p>
+              </div>
+
+              {/* Specific Given Portal Password Block */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-900 flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Specific Assigned Portal Password *</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    className="text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-blue-100/80 hover:bg-blue-200/80 px-2 py-0.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>Auto Generate</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPasswordInModal ? "text" : "password"}
+                    required
+                    placeholder="e.g. PagasaMember2026"
+                    value={formPortalPassword}
+                    onChange={(e) => setFormPortalPassword(e.target.value)}
+                    className="w-full pl-3 pr-10 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordInModal(!showPasswordInModal)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                  >
+                    {showPasswordInModal ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500 leading-tight">
+                  Give this password to the member. Only users with this Gmail and assigned password can sign in.
                 </p>
               </div>
 

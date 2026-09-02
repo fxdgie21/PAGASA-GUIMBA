@@ -344,9 +344,22 @@ export const Navbar: React.FC = () => {
                     setIsAuthModalOpen(true);
                   }}
                   className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-blue-700 hover:bg-blue-50 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  title="Sign in with authorized Gmail and assigned password"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>Portal Sign In</span>
+                  <span>Member Portal</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalMode('admin-login');
+                    setIsAuthModalOpen(true);
+                  }}
+                  className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-sky-300 transition-colors hidden sm:flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs"
+                  title="Sign in with PAGASA_ADMIN master credentials"
+                >
+                  <Shield className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Admin MIS</span>
                 </button>
                 <button
                   type="button"
