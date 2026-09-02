@@ -16,10 +16,8 @@ import {
   OrganizationSettings,
   NotificationItem,
   AuditLogItem,
-  EmailLogItem,
   AttendanceStatus,
   MembershipStatus,
-  CredentialStatus,
   ThemeMode,
   ColorPalette
 } from '../types';
@@ -50,16 +48,6 @@ import {
   StorageSnapshot,
   STORAGE_KEYS
 } from '../services/localStorageService';
-import {
-  hashPassword,
-  verifyPassword,
-  generateSecureTempPassword,
-  generateDefaultUsername
-} from '../utils/crypto';
-import {
-  generateCredentialEmailHTML,
-  generateCredentialEmailPlainText
-} from '../utils/emailTemplates';
 
 export function formatNameFromEmail(email: string): string {
   if (!email) return 'Youth Member';
@@ -155,7 +143,7 @@ interface AppContextType {
   
   // Role & Auth functions
   switchRole: (role: UserRole, userPayload?: User) => void;
-  loginUser: (email: string, role?: UserRole, providedName?: string, passwordInput?: string) => Promise<boolean> | boolean;
+  loginUser: (email: string, role?: UserRole, providedName?: string, passwordInput?: string) => boolean;
   loginWithSupabase: (email: string, password: string, targetRole?: UserRole, providedName?: string) => Promise<{ success: boolean; message?: string }>;
   signUpWithSupabase: (email: string, password: string, memberData: Omit<Member, 'id' | 'memberId' | 'membershipDate' | 'stats'>) => Promise<{ success: boolean; message?: string; memberId?: string }>;
   resetUserPassword: (email: string) => Promise<{ success: boolean; message: string }>;
@@ -167,22 +155,6 @@ interface AppContextType {
   showToast: (type: 'success' | 'error' | 'info' | 'warning', title: string, message: string) => void;
   addToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   removeToast: (id: string) => void;
-
-  // Credential Assignment & Portal Security
-  assignMemberCredentials: (
-    memberId: string, 
-    username: string, 
-    tempPassword: string, 
-    sendEmail?: boolean
-  ) => Promise<{ success: boolean; message: string; emailLog?: EmailLogItem }>;
-  resendCredentialsEmail: (memberId: string) => Promise<{ success: boolean; message: string }>;
-  resetMemberPassword: (memberId: string, customTempPassword?: string) => Promise<{ success: boolean; tempPassword: string; message: string }>;
-  toggleMemberPortalAccess: (memberId: string, disabled: boolean) => void;
-  changeMemberPermanentPassword: (memberId: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
-  requestPasswordReset: (identifier: string) => Promise<{ success: boolean; message: string }>;
-  emailLogs: EmailLogItem[];
-  isEmailLogsModalOpen: boolean;
-  setIsEmailLogsModalOpen: (open: boolean) => void;
 
   // Data Collections & Local Storage Provider Ops
   settings: OrganizationSettings;
@@ -415,11 +387,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return storageService.loadAuditLogs();
   });
 
-  const [emailLogs, setEmailLogs] = useState<EmailLogItem[]>(() => {
-    return storageService.loadEmailLogs();
-  });
-  const [isEmailLogsModalOpen, setIsEmailLogsModalOpen] = useState(false);
-
   // Local storage synchronization via Service Provider
   useEffect(() => {
     storageService.saveUserSession(currentUser, currentRole);
@@ -481,10 +448,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     storageService.saveAuditLogs(auditLogs);
   }, [auditLogs]);
 
-  useEffect(() => {
-    storageService.saveEmailLogs(emailLogs);
-  }, [emailLogs]);
-
   // Cross-tab synchronization listener
   useEffect(() => {
     const handleStorageEvent = (e: StorageEvent) => {
@@ -503,8 +466,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setAttendanceRecords(storageService.loadAttendanceRecords());
       } else if (e.key === STORAGE_KEYS.SETTINGS) {
         setSettings(storageService.loadSettings());
-      } else if (e.key === STORAGE_KEYS.EMAIL_LOGS) {
-        setEmailLogs(storageService.loadEmailLogs());
       }
     };
 
@@ -767,11 +728,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Member Authentication via Google
       let matchedMember = members.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
       if (!matchedMember) {
+        const fallbackMem = INITIAL_MEMBERS.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
+        if (fallbackMem) {
+          matchedMember = fallbackMem;
+          setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
+        }
+      }
+      if (!matchedMember) {
         await signOutFirebase().catch(() => {});
         showToast(
           'error',
           'Access Denied: Unregistered Google Account',
-          `The Google account (${email}) is not in the PAGASA Member Directory. Please join the organization or ask an administrator to register your Gmail.`
+          `The Google account (${email}) is not in the PAGASA Member Directory. An administrator must first register your Gmail and assign a password.`
         );
         logAuditEvent('Failed Google Login', 'Members', `Unauthorized Google account login attempt: ${email}`);
         return false;
@@ -848,50 +816,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return true;
     }
 
-    // 2. Member Portal Login (Username / Gmail + Password)
+    // 2. Member Portal Login (Password-free via Gmail, Gmail Username, Member ID, or Full Name)
     const findMemberByInput = (list: Member[], str: string) => {
       const clean = str.toLowerCase().trim();
       return list.find(m => {
         const memEmail = (m.email || '').toLowerCase().trim();
-        const memUsername = (m.username || '').toLowerCase().trim();
+        const memUsername = memEmail.split('@')[0];
         const memId = (m.memberId || '').toLowerCase().trim();
+        const memName = (m.fullName || '').toLowerCase().trim();
         return (
-          memUsername === clean ||
           memEmail === clean ||
+          memUsername === clean ||
           (clean + '@gmail.com') === memEmail ||
-          memId === clean
+          memId === clean ||
+          memName === clean
         );
       });
     };
 
     let matchedMember = findMemberByInput(members, input);
 
+    // Fallback to INITIAL_MEMBERS if not present in current state
+    if (!matchedMember) {
+      const fallbackMem = findMemberByInput(INITIAL_MEMBERS, input);
+      if (fallbackMem) {
+        matchedMember = fallbackMem;
+        setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
+      }
+    }
+
     if (!matchedMember) {
       showToast(
         'error',
-        'Account Not Found',
-        `The username or Gmail address "${input}" is not registered in the Member Directory. Please join the organization or contact an administrator.`
+        'Member Account Not Found',
+        `The Gmail username or address "${input}" is not registered. Please join the organization or contact an administrator to register.`
       );
       logAuditEvent('Failed Member Login', 'Members', `Unregistered member login attempt: "${input}"`);
       return false;
     }
 
-    if (matchedMember.membershipStatus === 'Pending Credentials' || matchedMember.credentialStatus === 'Credentials Not Assigned') {
-      showToast(
-        'warning',
-        'Account Pending Credentials',
-        `Hello ${matchedMember.fullName}, your registration is recorded. An administrator is currently assigning your username and credentials. You will receive your temporary password via email once dispatched.`
-      );
-      return false;
-    }
-
     if (matchedMember.membershipStatus === 'Pending') {
-      showToast('warning', 'Application Pending Review', `Hello ${matchedMember.fullName}, your membership application is awaiting administrator approval.`);
+      showToast('warning', 'Application Pending Approval', `Hello ${matchedMember.fullName}, your membership registration is awaiting administrator review before portal access is active.`);
       return false;
     }
 
-    if (matchedMember.membershipStatus === 'Suspended' || matchedMember.membershipStatus === 'Inactive' || matchedMember.isPortalAccessDisabled) {
-      showToast('error', 'Portal Access Disabled', 'Your member portal account has been deactivated or suspended by an administrator.');
+    if (matchedMember.membershipStatus === 'Suspended' || matchedMember.membershipStatus === 'Inactive' || matchedMember.gmailAccessEnabled === false) {
+      showToast('error', 'Member Portal Access Deactivated', 'Your member portal account is deactivated or suspended by an administrator.');
       return false;
     }
 
@@ -901,16 +871,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       email: matchedMember.email,
       role: 'MEMBER',
       avatar: matchedMember.profilePicture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(matchedMember.fullName)}`,
-      memberId: matchedMember.memberId,
-      username: matchedMember.username
+      memberId: matchedMember.memberId
     };
-
-    // Update member's lastLoginAt
-    setMembers(prev => prev.map(m => m.id === matchedMember.id ? { ...m, lastLoginAt: new Date().toISOString() } : m));
 
     switchRole('MEMBER', memberUserObj);
     setCurrentPage('member-dashboard');
-    logAuditEvent('Member Login', 'Members', `Member authenticated: ${matchedMember.fullName} (${matchedMember.username || matchedMember.email})`);
+    logAuditEvent('Member Login', 'Members', `Member logged in via Gmail username: ${matchedMember.fullName} (${matchedMember.email})`);
     showToast('success', `Welcome back, ${matchedMember.fullName}!`, 'Signed in to PAGASA Member Portal.');
     return true;
   };
@@ -946,21 +912,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       const ok = loginUser(input, 'SUPER_ADMIN', providedName, pwd);
-      return { success: Boolean(ok) };
+      return { success: ok };
     }
 
-    // Member Attempt
+    // Member Attempt (Password-Free via Gmail / Gmail username)
     const findMemberByInput = (list: Member[], str: string) => {
       const clean = str.toLowerCase().trim();
       return list.find(m => {
         const memEmail = (m.email || '').toLowerCase().trim();
-        const memUsername = (m.username || '').toLowerCase().trim();
+        const memUsername = memEmail.split('@')[0];
         const memId = (m.memberId || '').toLowerCase().trim();
+        const memName = (m.fullName || '').toLowerCase().trim();
         return (
-          memUsername === clean ||
           memEmail === clean ||
+          memUsername === clean ||
           (clean + '@gmail.com') === memEmail ||
-          memId === clean
+          memId === clean ||
+          memName === clean
         );
       });
     };
@@ -968,23 +936,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let matchedMember = findMemberByInput(members, input);
 
     if (!matchedMember) {
+      const fallbackMem = findMemberByInput(INITIAL_MEMBERS, input);
+      if (fallbackMem) {
+        matchedMember = fallbackMem;
+        setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
+      }
+    }
+
+    if (!matchedMember) {
       showToast(
         'error',
-        'Account Not Found',
-        `The username or Gmail "${input}" is not registered in the Member Directory. Please join the organization to get access.`
+        'Member Account Not Found',
+        `The Gmail or username "${input}" is not registered in the Member Directory. Please join the organization to get access.`
       );
       return {
         success: false,
-        message: `Account "${input}" is not registered in the Member Directory. Please register your Gmail first.`
-      };
-    }
-
-    if (matchedMember.membershipStatus === 'Pending Credentials' || matchedMember.credentialStatus === 'Credentials Not Assigned') {
-      const msg = `Account Pending Credentials: Your registration has been received. An administrator is assigning your username and credentials. Your temporary password will be sent to ${matchedMember.email}.`;
-      showToast('warning', 'Pending Credentials', msg);
-      return {
-        success: false,
-        message: msg
+        message: `Access Denied: The account "${input}" is not registered in the Member Directory. Please register your Gmail first.`
       };
     }
 
@@ -996,44 +963,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    if (matchedMember.membershipStatus === 'Suspended' || matchedMember.membershipStatus === 'Inactive' || matchedMember.isPortalAccessDisabled) {
-      showToast('error', 'Portal Access Deactivated', 'Your member portal access is deactivated or suspended.');
+    if (matchedMember.membershipStatus === 'Suspended' || matchedMember.membershipStatus === 'Inactive' || matchedMember.gmailAccessEnabled === false) {
+      showToast('error', 'Member Portal Access Deactivated', 'Your member portal access is deactivated or suspended.');
       return {
         success: false,
         message: 'Portal Access Disabled: Your member account has been deactivated by an administrator.'
       };
     }
 
-    // Verify Password
-    if (!pwd) {
-      return {
-        success: false,
-        message: 'Password Required: Please enter your assigned password or temporary access key.'
-      };
-    }
-
-    let isPasswordValid = false;
-    if (matchedMember.passwordHash) {
-      isPasswordValid = await verifyPassword(pwd, matchedMember.passwordHash);
-    }
-    if (!isPasswordValid && matchedMember.tempPassword) {
-      isPasswordValid = (pwd === matchedMember.tempPassword);
-    }
-    if (!isPasswordValid && (matchedMember as any).portalPassword) {
-      isPasswordValid = (pwd === (matchedMember as any).portalPassword);
-    }
-
-    if (!isPasswordValid) {
-      logAuditEvent('Failed Member Login', 'Members', `Failed password attempt for member: ${matchedMember.fullName} (${matchedMember.email})`);
-      showToast('error', 'Invalid Credentials', 'Incorrect password. If you forgot your password, please click "Forgot Password".');
-      return {
-        success: false,
-        message: 'Invalid password. Please check your credentials or request a password reset.'
-      };
-    }
-
     const ok = loginUser(input, 'MEMBER', providedName, pwd);
-    return { success: Boolean(ok) };
+    return { success: ok };
   };
 
   const signUpWithSupabase = async (
@@ -1163,7 +1102,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('info', 'Reset Complete', 'Application data reset to default demo state.');
   };
 
-  // Member Management & Credential Ops
+  // Member Management
   const addMember = (data: Omit<Member, 'id' | 'memberId' | 'membershipDate' | 'stats'>): Member => {
     const nextNum = members.length + 43;
     const memberId = `PAGASA-2026-${String(nextNum).padStart(4, '0')}`;
@@ -1172,9 +1111,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: 'mem-' + Date.now(),
       memberId,
       membershipDate: new Date().toISOString().split('T')[0],
-      membershipStatus: data.membershipStatus || 'Pending Credentials',
-      credentialStatus: data.credentialStatus || 'Credentials Not Assigned',
-      gmailAccessEnabled: true,
+      membershipStatus: data.membershipStatus || (settings.registrationAutoApproval ? 'Active' : 'Pending'),
       stats: {
         eventsJoined: 0,
         totalAttendance: 0,
@@ -1185,365 +1122,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     };
     setMembers(prev => [newMember, ...prev]);
-    logAuditEvent('Registered New Member', 'Members', `New member registration: ${newMember.fullName} (${memberId}, ${newMember.email}) with status Pending Credentials.`);
-    addNotification('New Member Application', `New member ${newMember.fullName} (${newMember.email}) requested portal access. Please assign official credentials in Member Directory.`, 'system');
-    showToast('success', 'Registration Submitted', `Member registration for ${newMember.fullName} recorded (ID: ${memberId}). Status: Pending Credentials.`);
+    logAuditEvent('Registered New Member', 'Members', `Added member: ${newMember.fullName} (${memberId}).`);
+    addNotification('New Member Application', `${newMember.fullName} from Brgy. ${newMember.barangay} registered.`, 'system');
+    showToast('success', 'Registration Completed', `Member ${newMember.fullName} profile created with ID ${memberId}.`);
     return newMember;
-  };
-
-  const assignMemberCredentials = async (
-    memberId: string,
-    username: string,
-    tempPassword: string,
-    sendEmail: boolean = true
-  ): Promise<{ success: boolean; message: string; emailLog?: EmailLogItem }> => {
-    const target = members.find(m => m.id === memberId || m.memberId === memberId);
-    if (!target) {
-      return { success: false, message: 'Member record not found.' };
-    }
-
-    const cleanUsername = username.trim().toLowerCase();
-    const existingUser = members.find(m => m.id !== target.id && m.username?.toLowerCase() === cleanUsername);
-    if (existingUser) {
-      return { success: false, message: `The username "${cleanUsername}" is already assigned to another member.` };
-    }
-
-    const hashed = await hashPassword(tempPassword.trim());
-    const nowIso = new Date().toISOString();
-
-    let newEmailLog: EmailLogItem | undefined = undefined;
-    const loginUrl = typeof window !== 'undefined' ? `${window.location.origin}` : 'https://pagasaguimba.org';
-
-    if (sendEmail) {
-      const emailHtml = generateCredentialEmailHTML({
-        recipientName: target.fullName,
-        recipientEmail: target.email,
-        memberId: target.memberId,
-        username: cleanUsername,
-        tempPassword: tempPassword.trim(),
-        loginUrl
-      });
-
-      const emailPlain = generateCredentialEmailPlainText({
-        recipientName: target.fullName,
-        recipientEmail: target.email,
-        memberId: target.memberId,
-        username: cleanUsername,
-        tempPassword: tempPassword.trim(),
-        loginUrl
-      });
-
-      newEmailLog = {
-        id: 'email-' + Date.now(),
-        recipientEmail: target.email,
-        recipientName: target.fullName,
-        subject: `Your PAGASA Guimba Portal Access Credentials - Welcome, ${target.fullName}!`,
-        sentAt: nowIso,
-        status: 'Delivered',
-        username: cleanUsername,
-        tempPasswordPreview: tempPassword.trim(),
-        htmlBody: emailHtml,
-        plainText: emailPlain
-      };
-
-      setEmailLogs(prev => [newEmailLog!, ...prev]);
-    }
-
-    setMembers(prev => {
-      const updated = prev.map(m => {
-        if (m.id === target.id) {
-          return {
-            ...m,
-            username: cleanUsername,
-            passwordHash: hashed,
-            tempPassword: tempPassword.trim(),
-            mustChangePassword: true,
-            credentialStatus: 'Credentials Sent' as CredentialStatus,
-            membershipStatus: 'Active' as MembershipStatus,
-            credentialsAssignedAt: nowIso,
-            credentialsEmailSentAt: sendEmail ? nowIso : m.credentialsEmailSentAt,
-            isPortalAccessDisabled: false
-          };
-        }
-        return m;
-      });
-      storageService.saveMembers(updated);
-      return updated;
-    });
-
-    logAuditEvent(
-      'Assigned Member Credentials',
-      'Members',
-      `Assigned username "${cleanUsername}" and dispatched credentials email to ${target.fullName} (${target.email}).`
-    );
-
-    addNotification(
-      'Credentials Assigned',
-      `Portal credentials for ${target.fullName} have been generated and dispatched to ${target.email}.`,
-      'system'
-    );
-
-    return {
-      success: true,
-      message: `Credentials successfully assigned! Automated welcome email dispatched to ${target.email}.`,
-      emailLog: newEmailLog
-    };
-  };
-
-  const resendCredentialsEmail = async (memberId: string): Promise<{ success: boolean; message: string }> => {
-    const target = members.find(m => m.id === memberId || m.memberId === memberId);
-    if (!target) {
-      return { success: false, message: 'Member record not found.' };
-    }
-
-    const currentUsername = target.username || generateDefaultUsername(target.email, target.fullName);
-    const pwdToDeliver = target.tempPassword || generateSecureTempPassword();
-    const nowIso = new Date().toISOString();
-    const loginUrl = typeof window !== 'undefined' ? `${window.location.origin}` : 'https://pagasaguimba.org';
-
-    const emailHtml = generateCredentialEmailHTML({
-      recipientName: target.fullName,
-      recipientEmail: target.email,
-      memberId: target.memberId,
-      username: currentUsername,
-      tempPassword: pwdToDeliver,
-      loginUrl
-    });
-
-    const emailPlain = generateCredentialEmailPlainText({
-      recipientName: target.fullName,
-      recipientEmail: target.email,
-      memberId: target.memberId,
-      username: currentUsername,
-      tempPassword: pwdToDeliver,
-      loginUrl
-    });
-
-    const newEmailLog: EmailLogItem = {
-      id: 'email-' + Date.now(),
-      recipientEmail: target.email,
-      recipientName: target.fullName,
-      subject: `[Resent] Your PAGASA Guimba Portal Access Credentials`,
-      sentAt: nowIso,
-      status: 'Delivered',
-      username: currentUsername,
-      tempPasswordPreview: pwdToDeliver,
-      htmlBody: emailHtml,
-      plainText: emailPlain
-    };
-
-    setEmailLogs(prev => [newEmailLog, ...prev]);
-
-    // Update member record with timestamp and latest temp password
-    const hashed = await hashPassword(pwdToDeliver);
-    setMembers(prev => {
-      const updated = prev.map(m => {
-        if (m.id === target.id) {
-          return {
-            ...m,
-            username: currentUsername,
-            passwordHash: hashed,
-            tempPassword: pwdToDeliver,
-            credentialsEmailSentAt: nowIso,
-            credentialStatus: 'Credentials Sent' as CredentialStatus
-          };
-        }
-        return m;
-      });
-      storageService.saveMembers(updated);
-      return updated;
-    });
-
-    logAuditEvent(
-      'Resent Member Credentials Email',
-      'Members',
-      `Resent access credentials email to ${target.fullName} (${target.email}).`
-    );
-
-    return {
-      success: true,
-      message: `Credentials email successfully resent to ${target.email}.`
-    };
-  };
-
-  const resetMemberPassword = async (
-    memberId: string,
-    customTempPassword?: string
-  ): Promise<{ success: boolean; tempPassword: string; message: string }> => {
-    const target = members.find(m => m.id === memberId || m.memberId === memberId);
-    if (!target) {
-      return { success: false, tempPassword: '', message: 'Member record not found.' };
-    }
-
-    const tempPwd = customTempPassword || generateSecureTempPassword();
-    const hashed = await hashPassword(tempPwd);
-    const nowIso = new Date().toISOString();
-    const loginUrl = typeof window !== 'undefined' ? `${window.location.origin}` : 'https://pagasaguimba.org';
-    const currentUsername = target.username || generateDefaultUsername(target.email, target.fullName);
-
-    const emailHtml = generateCredentialEmailHTML({
-      recipientName: target.fullName,
-      recipientEmail: target.email,
-      memberId: target.memberId,
-      username: currentUsername,
-      tempPassword: tempPwd,
-      loginUrl,
-      isPasswordReset: true
-    });
-
-    const emailPlain = generateCredentialEmailPlainText({
-      recipientName: target.fullName,
-      recipientEmail: target.email,
-      memberId: target.memberId,
-      username: currentUsername,
-      tempPassword: tempPwd,
-      loginUrl,
-      isPasswordReset: true
-    });
-
-    const newEmailLog: EmailLogItem = {
-      id: 'email-' + Date.now(),
-      recipientEmail: target.email,
-      recipientName: target.fullName,
-      subject: `[Password Reset] Your New Temporary Credentials - PAGASA Guimba`,
-      sentAt: nowIso,
-      status: 'Delivered',
-      username: currentUsername,
-      tempPasswordPreview: tempPwd,
-      htmlBody: emailHtml,
-      plainText: emailPlain
-    };
-
-    setEmailLogs(prev => [newEmailLog, ...prev]);
-
-    setMembers(prev => {
-      const updated = prev.map(m => {
-        if (m.id === target.id) {
-          return {
-            ...m,
-            passwordHash: hashed,
-            tempPassword: tempPwd,
-            mustChangePassword: true,
-            credentialStatus: 'Credentials Sent' as CredentialStatus,
-            credentialsEmailSentAt: nowIso
-          };
-        }
-        return m;
-      });
-      storageService.saveMembers(updated);
-      return updated;
-    });
-
-    logAuditEvent(
-      'Reset Member Password',
-      'Members',
-      `Admin initiated password reset for ${target.fullName} (${target.email}). New temporary key emailed.`
-    );
-
-    return {
-      success: true,
-      tempPassword: tempPwd,
-      message: `Password reset successfully. Temporary password (${tempPwd}) has been emailed to ${target.email}.`
-    };
-  };
-
-  const toggleMemberPortalAccess = (memberId: string, disabled: boolean) => {
-    setMembers(prev => {
-      const updated = prev.map(m => {
-        if (m.id === memberId || m.memberId === memberId) {
-          return {
-            ...m,
-            isPortalAccessDisabled: disabled,
-            membershipStatus: disabled ? ('Suspended' as MembershipStatus) : ('Active' as MembershipStatus)
-          };
-        }
-        return m;
-      });
-      storageService.saveMembers(updated);
-      return updated;
-    });
-
-    const target = members.find(m => m.id === memberId || m.memberId === memberId);
-    logAuditEvent(
-      disabled ? 'Disabled Member Portal Access' : 'Restored Member Portal Access',
-      'Members',
-      `${disabled ? 'Disabled' : 'Restored'} portal access for ${target?.fullName || memberId}.`
-    );
-  };
-
-  const changeMemberPermanentPassword = async (
-    memberId: string,
-    newPassword: string
-  ): Promise<{ success: boolean; message: string }> => {
-    const target = members.find(m => m.id === memberId || m.memberId === memberId);
-    if (!target) {
-      return { success: false, message: 'Member not found.' };
-    }
-
-    if (newPassword.length < 8) {
-      return { success: false, message: 'Password must be at least 8 characters long.' };
-    }
-
-    const hashed = await hashPassword(newPassword);
-    setMembers(prev => {
-      const updated = prev.map(m => {
-        if (m.id === target.id) {
-          return {
-            ...m,
-            passwordHash: hashed,
-            tempPassword: undefined,
-            mustChangePassword: false,
-            credentialStatus: 'Password Changed' as CredentialStatus
-          };
-        }
-        return m;
-      });
-      storageService.saveMembers(updated);
-      return updated;
-    });
-
-    logAuditEvent(
-      'Updated Permanent Password',
-      'Members',
-      `Member ${target.fullName} (${target.email}) established permanent password.`
-    );
-
-    return {
-      success: true,
-      message: 'Your permanent password has been set successfully!'
-    };
-  };
-
-  const requestPasswordReset = async (
-    identifier: string
-  ): Promise<{ success: boolean; message: string }> => {
-    const clean = identifier.trim().toLowerCase();
-    const target = members.find(m => {
-      const mEmail = (m.email || '').toLowerCase().trim();
-      const mUser = (m.username || '').toLowerCase().trim();
-      const mId = (m.memberId || '').toLowerCase().trim();
-      return mEmail === clean || mUser === clean || mId === clean;
-    });
-
-    if (!target) {
-      return {
-        success: false,
-        message: `If an account with "${identifier}" exists in our system, a temporary password email has been sent to its registered Gmail address.`
-      };
-    }
-
-    if (target.isPortalAccessDisabled) {
-      return {
-        success: false,
-        message: 'This account has been deactivated. Please contact an administrator at admin@pagasaguimba.org.'
-      };
-    }
-
-    const res = await resetMemberPassword(target.id);
-    return {
-      success: true,
-      message: `A temporary password has been emailed to ${target.email}. Please check your inbox and spam folders.`
-    };
   };
 
   const updateMember = (id: string, updates: Partial<Member>) => {
@@ -2085,16 +1667,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addNotification,
         auditLogs,
         logAuditEvent,
-        confirmAction,
-        emailLogs,
-        isEmailLogsModalOpen,
-        setIsEmailLogsModalOpen,
-        assignMemberCredentials,
-        resendCredentialsEmail,
-        resetMemberPassword,
-        toggleMemberPortalAccess,
-        changeMemberPermanentPassword,
-        requestPasswordReset
+        confirmAction
       }}
     >
       {children}

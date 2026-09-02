@@ -3,9 +3,7 @@ export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER' | 'GUEST';
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type ColorPalette = 'default' | 'emerald' | 'purple' | 'sunset' | 'ocean' | 'high-contrast';
 
-export type MembershipStatus = 'Active' | 'Pending' | 'Pending Credentials' | 'Inactive' | 'Disabled' | 'Suspended';
-
-export type CredentialStatus = 'Credentials Not Assigned' | 'Credentials Sent' | 'Password Changed' | 'Delivery Failed';
+export type MembershipStatus = 'Active' | 'Pending' | 'Inactive' | 'Suspended';
 
 export type AttendanceStatus = 'Present' | 'Late' | 'Absent' | 'Excused';
 
@@ -29,7 +27,6 @@ export interface User {
   role: UserRole;
   avatar: string;
   memberId?: string;
-  username?: string;
 }
 
 export interface Member {
@@ -37,15 +34,6 @@ export interface Member {
   memberId: string; // e.g. "PAGASA-2026-001"
   fullName: string;
   email: string;
-  username?: string; // Assigned username
-  passwordHash?: string; // Secure SHA-256 hashed password with salt
-  tempPassword?: string; // Temporary assigned password
-  mustChangePassword?: boolean; // Forces password change on first login
-  credentialStatus?: CredentialStatus;
-  credentialsAssignedAt?: string;
-  credentialsEmailSentAt?: string;
-  lastLoginAt?: string;
-  isPortalAccessDisabled?: boolean;
   contactNumber: string;
   birthdate: string;
   age: number;
@@ -78,22 +66,6 @@ export interface Member {
     projectsParticipated: number;
     certificatesEarned: number;
   };
-}
-
-export interface EmailLogItem {
-  id: string;
-  recipientEmail: string;
-  recipientName: string;
-  subject: string;
-  type: 'CREDENTIAL_ASSIGNMENT' | 'PASSWORD_RESET' | 'WELCOME_NOTICE' | 'EVENT_NOTIFICATION';
-  username?: string;
-  tempPassword?: string;
-  loginUrl: string;
-  sentAt: string;
-  status: 'DELIVERED' | 'FAILED' | 'PENDING';
-  htmlBody: string;
-  plainTextBody?: string;
-  errorMessage?: string;
 }
 
 export interface EventRegistration {

@@ -15,7 +15,6 @@ import {
   OrganizationSettings,
   NotificationItem,
   AuditLogItem,
-  EmailLogItem,
   ThemeMode,
   ColorPalette
 } from '../types';
@@ -50,11 +49,11 @@ export const STORAGE_KEYS = {
   
   // Organization Domain State
   SETTINGS: 'pagasa_settings',
-  MEMBERS: 'pagasa_members_v4',
+  MEMBERS: 'pagasa_members',
   EVENTS: 'pagasa_events',
   REGISTRATIONS: 'pagasa_registrations',
   ATTENDANCE_SESSIONS: 'pagasa_sessions',
-  ATTENDANCE_RECORDS: 'pagasa_attendance_records_v4',
+  ATTENDANCE_RECORDS: 'pagasa_attendance_records',
   PROJECTS: 'pagasa_projects',
   ACTIVITIES: 'pagasa_activities',
   ANNOUNCEMENTS: 'pagasa_announcements',
@@ -63,7 +62,6 @@ export const STORAGE_KEYS = {
   CERTIFICATES: 'pagasa_certificates',
   NOTIFICATIONS: 'pagasa_notifications',
   AUDIT_LOGS: 'pagasa_audit_logs',
-  EMAIL_LOGS: 'pagasa_email_logs_v4',
   VERSION: 'pagasa_storage_version'
 } as const;
 
@@ -256,11 +254,23 @@ class LocalStorageService {
   }
 
   public loadMembers(): Member[] {
-    const stored = this.getItem<Member[]>(STORAGE_KEYS.MEMBERS, []);
-    if (!stored || !Array.isArray(stored)) {
-      return [];
+    const stored = this.getItem<Member[]>(STORAGE_KEYS.MEMBERS, INITIAL_MEMBERS);
+    if (!stored || !Array.isArray(stored) || stored.length === 0) {
+      return INITIAL_MEMBERS;
     }
-    return stored;
+    // Merge any missing initial members so updates to initial data are never lost
+    const merged = [...stored];
+    for (const initMem of INITIAL_MEMBERS) {
+      const exists = merged.some(m => 
+        (m.id && m.id === initMem.id) || 
+        (m.email && initMem.email && m.email.toLowerCase().trim() === initMem.email.toLowerCase().trim()) ||
+        (m.memberId && initMem.memberId && m.memberId.toLowerCase().trim() === initMem.memberId.toLowerCase().trim())
+      );
+      if (!exists) {
+        merged.unshift(initMem);
+      }
+    }
+    return merged;
   }
 
   public saveMembers(members: Member[]): void {
@@ -381,14 +391,6 @@ class LocalStorageService {
 
   public saveAuditLogs(auditLogs: AuditLogItem[]): void {
     this.setItem(STORAGE_KEYS.AUDIT_LOGS, auditLogs);
-  }
-
-  public loadEmailLogs(): EmailLogItem[] {
-    return this.getItem<EmailLogItem[]>(STORAGE_KEYS.EMAIL_LOGS, []);
-  }
-
-  public saveEmailLogs(emailLogs: EmailLogItem[]): void {
-    this.setItem(STORAGE_KEYS.EMAIL_LOGS, emailLogs);
   }
 
   /* ==========================================================================
