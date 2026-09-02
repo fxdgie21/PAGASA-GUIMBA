@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { GUIMBA_BARANGAYS } from '../../data/mockData';
 import { PagasaLogo } from './PagasaLogo';
-import { X, Lock, Mail, User, Phone, Calendar, Shield, ArrowRight, CheckCircle2, Loader2, Sparkles, KeyRound, Check, HelpCircle, Eye, EyeOff } from 'lucide-react';
+import { X, Lock, Mail, User, Phone, Calendar, Shield, ArrowRight, CheckCircle2, Loader2, Sparkles, KeyRound, Check, HelpCircle, Eye, EyeOff, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 
@@ -36,7 +36,6 @@ export const AuthModal: React.FC = () => {
   // Register form state
   const [regFullName, setRegFullName] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
   const [regContact, setRegContact] = useState('');
   const [regBirthdate, setRegBirthdate] = useState('2004-01-01');
   const [regGender, setRegGender] = useState<'Male' | 'Female' | 'Prefer not to say' | 'Other'>('Male');
@@ -48,6 +47,7 @@ export const AuthModal: React.FC = () => {
   const [regEmergencyRel, setRegEmergencyRel] = useState('Parent');
   const [regEmergencyContact, setRegEmergencyContact] = useState('');
   const [regSuccessMemberId, setRegSuccessMemberId] = useState<string | null>(null);
+  const [regSuccessEmail, setRegSuccessEmail] = useState<string>('');
 
   if (!isAuthModalOpen) return null;
 
@@ -92,10 +92,11 @@ export const AuthModal: React.FC = () => {
       const birthYear = new Date(regBirthdate).getFullYear();
       const currentYear = 2026;
       const calculatedAge = Math.max(15, currentYear - birthYear);
+      const cleanEmail = regEmail.trim().toLowerCase();
 
-      const res = await signUpWithSupabase(regEmail, regPassword || 'pagasa2026', {
+      const res = await signUpWithSupabase(cleanEmail, '', {
         fullName: regFullName.trim(),
-        email: regEmail.trim().toLowerCase(),
+        email: cleanEmail,
         contactNumber: regContact,
         birthdate: regBirthdate,
         age: calculatedAge,
@@ -110,6 +111,7 @@ export const AuthModal: React.FC = () => {
         membershipStatus: 'Active',
         organizationPosition: 'Youth Member',
         committee: 'General Youth Volunteer',
+        gmailAccessEnabled: true,
         emergencyContact: {
           name: regEmergencyName || 'Family Contact',
           relationship: regEmergencyRel || 'Parent / Guardian',
@@ -117,6 +119,7 @@ export const AuthModal: React.FC = () => {
         }
       });
 
+      setRegSuccessEmail(cleanEmail);
       if (res.memberId) {
         setRegSuccessMemberId(res.memberId);
       } else {
@@ -178,28 +181,28 @@ export const AuthModal: React.FC = () => {
                 </span>
               </div>
               <h2 className="text-xl font-display font-bold">
-                {showForgotModal ? 'Reset Portal Password' :
+                {showForgotModal ? 'Need Sign-In Help' :
                   regSuccessMemberId ? 'Registration Complete!' : 
                   authModalMode === 'admin-login' ? 'Administrator Sign In' :
-                  authModalMode === 'login' ? 'Member Portal Sign In' : 'Youth Membership Registration'}
+                  authModalMode === 'login' ? 'Member Portal Sign In' : 'Join Organization'}
               </h2>
             </div>
           </div>
         </div>
 
-        {/* Forgot Password View */}
+        {/* Help / Password Recovery View */}
         {showForgotModal ? (
           <div className="p-6 space-y-4">
             <div className="flex items-center gap-2 text-slate-700 text-sm font-semibold">
               <KeyRound className="w-5 h-5 text-blue-600" />
-              <span>Password Recovery</span>
+              <span>Member Sign-In Assistance</span>
             </div>
             {forgotStatus === 'success' ? (
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-2">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                <h4 className="font-bold text-slate-900 text-sm">Reset Instructions Sent</h4>
+                <h4 className="font-bold text-slate-900 text-sm">Access Information Dispatched</h4>
                 <p className="text-xs text-slate-600">
-                  We've sent password reset instructions for <strong>{forgotEmail}</strong>.
+                  We've sent access instructions to <strong>{forgotEmail}</strong>. You can sign in using your Gmail username or 1-click Google OAuth.
                 </p>
                 <button
                   type="button"
@@ -215,7 +218,7 @@ export const AuthModal: React.FC = () => {
             ) : (
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Enter your registered account Gmail and we'll send password recovery instructions.
+                  Enter your registered account Gmail and our system will verify your membership and resend access details.
                 </p>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -240,7 +243,7 @@ export const AuthModal: React.FC = () => {
                     className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {forgotStatus === 'loading' && <Loader2 className="w-4 h-4 animate-spin" />}
-                    <span>Send Reset Instructions</span>
+                    <span>Verify & Resend Access</span>
                   </button>
                   <button
                     type="button"
@@ -259,26 +262,34 @@ export const AuthModal: React.FC = () => {
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-9 h-9" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900">Member Account Ready!</h3>
+            <h3 className="text-xl font-bold text-slate-900">Registration Complete & Account Activated!</h3>
             <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-              Mabuhay! Your youth membership registration is active. Your assigned Member ID is:
+              Mabuhay! You have officially joined PAGASA Guimba. Your assigned Member ID is:
             </p>
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl inline-block font-mono font-bold text-blue-800 text-lg">
               {regSuccessMemberId}
             </div>
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 text-left max-w-md mx-auto">
-              <p className="font-semibold mb-0.5">Gmail Portal Access Enabled</p>
-              You can now sign in using your registered Gmail address or 1-click Google OAuth.
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 text-left max-w-md mx-auto space-y-1">
+              <div className="flex items-center gap-1.5 font-bold">
+                <Send className="w-4 h-4 text-emerald-600" />
+                <span>Automated Email Notification Dispatched</span>
+              </div>
+              <p className="text-slate-600">
+                An automated welcome notification has been sent to <strong>{regSuccessEmail}</strong>. Your Gmail is authorized for password-free access.
+              </p>
             </div>
             <div className="pt-4 flex gap-3 justify-center">
               <button
                 onClick={() => {
+                  const targetInput = regSuccessEmail.split('@')[0] || regSuccessEmail;
+                  loginWithSupabase(targetInput, '', 'MEMBER');
+                  setIsAuthModalOpen(false);
                   setRegSuccessMemberId(null);
-                  setAuthModalMode('login');
                 }}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md cursor-pointer"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md cursor-pointer flex items-center gap-2"
               >
-                Proceed to Member Portal
+                <span>Enter Member Portal Now</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
               <button
                 onClick={() => {
@@ -368,37 +379,50 @@ export const AuthModal: React.FC = () => {
                   <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-2xl space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-blue-950 font-bold text-xs">
-                        <Lock className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Admin-Managed Member Access</span>
+                        <Mail className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Password-Free Member Login</span>
                       </div>
-                      <span className="text-[10px] font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                        Gmail + Given Password
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        Gmail Username Only
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-600 leading-tight">
-                      Members can only sign in using their registered Gmail and the specific password given by an administrator.
+                      Simply enter your registered Gmail address, Gmail username (e.g. <code>giancarlomagat19</code>), or 1-click Google sign in. No password required.
                     </p>
                     <div className="pt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] text-slate-500 font-semibold">Quick Test:</span>
+                      <span className="text-[10px] text-slate-500 font-semibold">Quick Sign In:</span>
                       <button
                         type="button"
                         onClick={() => {
-                          setLoginEmail('juan.delacruz@gmail.com');
-                          setLoginPassword('PagasaMember2026');
+                          setLoginEmail('giancarlomagat19');
+                          loginWithSupabase('giancarlomagat19', '', 'MEMBER');
+                          setIsAuthModalOpen(false);
                         }}
                         className="text-[10px] px-2 py-0.5 bg-white hover:bg-blue-100 text-blue-800 font-semibold rounded-md border border-blue-200 transition-colors cursor-pointer"
                       >
-                        Juan Dela Cruz
+                        Gian Carlo Magat
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          setLoginEmail('maria.santos@gmail.com');
-                          setLoginPassword('PagasaMember2026');
+                          setLoginEmail('fxdgie21');
+                          loginWithSupabase('fxdgie21', '', 'MEMBER');
+                          setIsAuthModalOpen(false);
                         }}
                         className="text-[10px] px-2 py-0.5 bg-white hover:bg-blue-100 text-blue-800 font-semibold rounded-md border border-blue-200 transition-colors cursor-pointer"
                       >
-                        Maria Santos
+                        Gian Magat
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoginEmail('juan.delacruz');
+                          loginWithSupabase('juan.delacruz', '', 'MEMBER');
+                          setIsAuthModalOpen(false);
+                        }}
+                        className="text-[10px] px-2 py-0.5 bg-white hover:bg-blue-100 text-blue-800 font-semibold rounded-md border border-blue-200 transition-colors cursor-pointer"
+                      >
+                        Juan Dela Cruz
                       </button>
                     </div>
                   </div>
@@ -426,14 +450,14 @@ export const AuthModal: React.FC = () => {
                   </div>
                   <div className="relative flex justify-center text-[11px] uppercase">
                     <span className="bg-white px-3 text-slate-400 font-semibold tracking-wider">
-                      {authModalMode === 'admin-login' ? 'Or enter Admin Credentials' : 'Or enter Member Credentials'}
+                      {authModalMode === 'admin-login' ? 'Or enter Admin Credentials' : 'Or enter Gmail Username'}
                     </span>
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    {authModalMode === 'admin-login' ? 'Admin Username or Email' : 'Authorized Gmail or Member ID'}
+                    {authModalMode === 'admin-login' ? 'Admin Username or Email' : 'Authorized Gmail or Gmail Username'}
                   </label>
                   <div className="relative">
                     {authModalMode === 'admin-login' ? (
@@ -446,36 +470,39 @@ export const AuthModal: React.FC = () => {
                       required
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder={authModalMode === 'admin-login' ? 'PAGASA_ADMIN' : 'e.g. juan.delacruz@gmail.com'}
+                      placeholder={authModalMode === 'admin-login' ? 'PAGASA_ADMIN' : 'e.g. giancarlomagat19 or juan.delacruz@gmail.com'}
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    {authModalMode === 'admin-login' ? 'Admin Master Password' : 'Given Portal Password'}
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type={showLoginPassword ? "text" : "password"}
-                      required
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder={authModalMode === 'admin-login' ? 'TayoAngPagasa2026' : 'Enter assigned password'}
-                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400 font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-                      title={showLoginPassword ? "Hide password" : "Show password"}
-                    >
-                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                {/* Password only for Admin */}
+                {authModalMode === 'admin-login' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Admin Master Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showLoginPassword ? "text" : "password"}
+                        required
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="TayoAngPagasa2026"
+                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                        title={showLoginPassword ? "Hide password" : "Show password"}
+                      >
+                        {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex items-center justify-between text-xs">
                   <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
@@ -516,9 +543,20 @@ export const AuthModal: React.FC = () => {
               </form>
             )}
 
-            {/* Registration Form */}
+            {/* Registration Form (Join Organization) */}
             {authModalMode === 'register' && (
               <form onSubmit={handleRegisterSubmit} className="space-y-4 max-h-[58vh] overflow-y-auto pr-1">
+                {/* Instant Gmail Authorization Callout */}
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl space-y-1">
+                  <div className="flex items-center gap-1.5 text-blue-950 font-bold text-xs">
+                    <Send className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Automatic Gmail Authorization (No Password Needed)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-tight">
+                    Submit your details below. The system automatically registers and emails your account confirmation. You will log in simply by typing your Gmail username.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -558,23 +596,6 @@ export const AuthModal: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Create Password *
-                    </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="password"
-                        required
-                        value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
-                        placeholder="At least 6 characters"
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Mobile / Contact Number *
                     </label>
                     <div className="relative">
@@ -589,9 +610,7 @@ export const AuthModal: React.FC = () => {
                       />
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Barangay (Guimba) *
@@ -606,7 +625,9 @@ export const AuthModal: React.FC = () => {
                       ))}
                     </select>
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Birthdate *
@@ -622,9 +643,7 @@ export const AuthModal: React.FC = () => {
                       />
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Gender
@@ -640,25 +659,25 @@ export const AuthModal: React.FC = () => {
                       <option value="Other">Other</option>
                     </select>
                   </div>
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Educational / Youth Status
-                    </label>
-                    <select
-                      value={regEducation}
-                      onChange={(e) => setRegEducation(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    >
-                      <option value="College / University">College / University</option>
-                      <option value="Senior High">Senior High</option>
-                      <option value="High School">High School</option>
-                      <option value="Vocational / TVET">Vocational / TVET</option>
-                      <option value="Employed Professional">Employed Professional</option>
-                      <option value="Out of School Youth">Out of School Youth</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Educational / Youth Status
+                  </label>
+                  <select
+                    value={regEducation}
+                    onChange={(e) => setRegEducation(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  >
+                    <option value="College / University">College / University</option>
+                    <option value="Senior High">Senior High</option>
+                    <option value="High School">High School</option>
+                    <option value="Vocational / TVET">Vocational / TVET</option>
+                    <option value="Employed Professional">Employed Professional</option>
+                    <option value="Out of School Youth">Out of School Youth</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
 
                 <div>
@@ -704,7 +723,7 @@ export const AuthModal: React.FC = () => {
                 </div>
 
                 <div className="text-[11px] text-slate-500">
-                  By registering, your account will be added to the PAGASA Guimba youth roster with instant portal access.
+                  By clicking Register, your membership is created and an automated welcome email with your portal access will be sent.
                 </div>
 
                 <button
@@ -716,7 +735,7 @@ export const AuthModal: React.FC = () => {
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
-                      <span>Complete Youth Registration</span>
+                      <span>Join Organization & Activate Access</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}

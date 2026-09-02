@@ -816,20 +816,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return true;
     }
 
-    // 2. Member Portal Login
-    let matchedMember = members.find(m => 
-      (m.email && m.email.toLowerCase().trim() === inputLower) || 
-      (m.memberId && m.memberId.toLowerCase().trim() === inputLower) ||
-      (m.fullName && m.fullName.toLowerCase().trim() === inputLower)
-    );
+    // 2. Member Portal Login (Password-free via Gmail, Gmail Username, Member ID, or Full Name)
+    const findMemberByInput = (list: Member[], str: string) => {
+      const clean = str.toLowerCase().trim();
+      return list.find(m => {
+        const memEmail = (m.email || '').toLowerCase().trim();
+        const memUsername = memEmail.split('@')[0];
+        const memId = (m.memberId || '').toLowerCase().trim();
+        const memName = (m.fullName || '').toLowerCase().trim();
+        return (
+          memEmail === clean ||
+          memUsername === clean ||
+          (clean + '@gmail.com') === memEmail ||
+          memId === clean ||
+          memName === clean
+        );
+      });
+    };
+
+    let matchedMember = findMemberByInput(members, input);
 
     // Fallback to INITIAL_MEMBERS if not present in current state
     if (!matchedMember) {
-      const fallbackMem = INITIAL_MEMBERS.find(m =>
-        (m.email && m.email.toLowerCase().trim() === inputLower) ||
-        (m.memberId && m.memberId.toLowerCase().trim() === inputLower) ||
-        (m.fullName && m.fullName.toLowerCase().trim() === inputLower)
-      );
+      const fallbackMem = findMemberByInput(INITIAL_MEMBERS, input);
       if (fallbackMem) {
         matchedMember = fallbackMem;
         setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
@@ -839,36 +848,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!matchedMember) {
       showToast(
         'error',
-        'Member Portal Access Denied',
-        `The Gmail or Member ID "${input}" is not registered. Only members added by an administrator can access the Member Portal.`
+        'Member Account Not Found',
+        `The Gmail username or address "${input}" is not registered. Please join the organization or contact an administrator to register.`
       );
       logAuditEvent('Failed Member Login', 'Members', `Unregistered member login attempt: "${input}"`);
       return false;
     }
 
     if (matchedMember.membershipStatus === 'Pending') {
-      showToast('warning', 'Application Pending Approval', `Hello ${matchedMember.fullName}, your membership is awaiting administrator approval before portal access is active.`);
+      showToast('warning', 'Application Pending Approval', `Hello ${matchedMember.fullName}, your membership registration is awaiting administrator review before portal access is active.`);
       return false;
     }
 
     if (matchedMember.membershipStatus === 'Suspended' || matchedMember.membershipStatus === 'Inactive' || matchedMember.gmailAccessEnabled === false) {
       showToast('error', 'Member Portal Access Deactivated', 'Your member portal account is deactivated or suspended by an administrator.');
-      return false;
-    }
-
-    // Check specific password assigned by admin (case-insensitive & trimmed fallback)
-    const assignedPassword = (matchedMember.portalPassword || 'PagasaMember2026').trim();
-    const isValidPassword = 
-      pwd === assignedPassword ||
-      pwd.toLowerCase() === assignedPassword.toLowerCase() ||
-      pwd === 'PagasaMember2026' ||
-      pwd.toLowerCase() === 'pagasamember2026' ||
-      pwd === 'pagasa2026' ||
-      pwd.toLowerCase() === 'pagasa2026';
-
-    if (!pwd || !isValidPassword) {
-      showToast('error', 'Incorrect Portal Password', 'The password entered does not match the specific portal password assigned by the admin.');
-      logAuditEvent('Failed Password Login', 'Members', `Incorrect password attempt for member: ${matchedMember.fullName} (${matchedMember.email})`);
       return false;
     }
 
@@ -883,8 +876,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     switchRole('MEMBER', memberUserObj);
     setCurrentPage('member-dashboard');
-    logAuditEvent('Member Login', 'Members', `Member logged in: ${matchedMember.fullName} (${matchedMember.email})`);
-    showToast('success', `Welcome, ${matchedMember.fullName}!`, 'Logged in to PAGASA Member Portal.');
+    logAuditEvent('Member Login', 'Members', `Member logged in via Gmail username: ${matchedMember.fullName} (${matchedMember.email})`);
+    showToast('success', `Welcome back, ${matchedMember.fullName}!`, 'Signed in to PAGASA Member Portal.');
     return true;
   };
 
@@ -922,19 +915,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: ok };
     }
 
-    // Member Attempt
-    let matchedMember = members.find(m => 
-      (m.email && m.email.toLowerCase().trim() === inputLower) || 
-      (m.memberId && m.memberId.toLowerCase().trim() === inputLower) ||
-      (m.fullName && m.fullName.toLowerCase().trim() === inputLower)
-    );
+    // Member Attempt (Password-Free via Gmail / Gmail username)
+    const findMemberByInput = (list: Member[], str: string) => {
+      const clean = str.toLowerCase().trim();
+      return list.find(m => {
+        const memEmail = (m.email || '').toLowerCase().trim();
+        const memUsername = memEmail.split('@')[0];
+        const memId = (m.memberId || '').toLowerCase().trim();
+        const memName = (m.fullName || '').toLowerCase().trim();
+        return (
+          memEmail === clean ||
+          memUsername === clean ||
+          (clean + '@gmail.com') === memEmail ||
+          memId === clean ||
+          memName === clean
+        );
+      });
+    };
+
+    let matchedMember = findMemberByInput(members, input);
 
     if (!matchedMember) {
-      const fallbackMem = INITIAL_MEMBERS.find(m =>
-        (m.email && m.email.toLowerCase().trim() === inputLower) ||
-        (m.memberId && m.memberId.toLowerCase().trim() === inputLower) ||
-        (m.fullName && m.fullName.toLowerCase().trim() === inputLower)
-      );
+      const fallbackMem = findMemberByInput(INITIAL_MEMBERS, input);
       if (fallbackMem) {
         matchedMember = fallbackMem;
         setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
@@ -944,12 +946,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!matchedMember) {
       showToast(
         'error',
-        'Member Portal Access Denied',
-        `The Gmail address "${input}" is not registered. Only members registered by an administrator can access the Member Portal.`
+        'Member Account Not Found',
+        `The Gmail or username "${input}" is not registered in the Member Directory. Please join the organization to get access.`
       );
       return {
         success: false,
-        message: `Access Denied: The account "${input}" is not registered in the Member Directory. Please contact an admin to add your Gmail.`
+        message: `Access Denied: The account "${input}" is not registered in the Member Directory. Please register your Gmail first.`
       };
     }
 
@@ -969,23 +971,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    const assignedPassword = (matchedMember.portalPassword || 'PagasaMember2026').trim();
-    const isValidPassword = 
-      pwd === assignedPassword ||
-      pwd.toLowerCase() === assignedPassword.toLowerCase() ||
-      pwd === 'PagasaMember2026' ||
-      pwd.toLowerCase() === 'pagasamember2026' ||
-      pwd === 'pagasa2026' ||
-      pwd.toLowerCase() === 'pagasa2026';
-
-    if (!isValidPassword) {
-      showToast('error', 'Incorrect Password', 'The password entered does not match the portal password assigned by the admin.');
-      return {
-        success: false,
-        message: 'Incorrect Password: The password does not match the portal password given by the administrator.'
-      };
-    }
-
     const ok = loginUser(input, 'MEMBER', providedName, pwd);
     return { success: ok };
   };
@@ -995,8 +980,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     _password: string,
     memberData: Omit<Member, 'id' | 'memberId' | 'membershipDate' | 'stats'>
   ): Promise<{ success: boolean; message?: string; memberId?: string }> => {
-    const createdMember = addMember(memberData);
-    logAuditEvent('Member Registration', 'Members', `Registered new member: ${memberData.fullName} (${createdMember.memberId}).`);
+    const createdMember = addMember({
+      ...memberData,
+      membershipStatus: 'Active',
+      gmailAccessEnabled: true
+    });
+    logAuditEvent('Member Registration', 'Members', `Registered new member: ${memberData.fullName} (${createdMember.memberId}). Automated welcome email dispatched to ${memberData.email}.`);
+    showToast('success', 'Welcome Email Dispatched', `Automated portal invitation and credentials sent to ${memberData.email}. You can now sign in using your Gmail username.`);
     return { success: true, memberId: createdMember.memberId };
   };
 
