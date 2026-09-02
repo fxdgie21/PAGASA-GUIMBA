@@ -13,16 +13,18 @@ import {
   User, 
   Mail, 
   Phone, 
+  Lock, 
   ArrowRight,
   BookOpen
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const JoinPage: React.FC = () => {
-  const { addMember, setIsAuthModalOpen, setAuthModalMode, setCurrentPage, addToast } = useApp();
+  const { addMember, setIsAuthModalOpen, setAuthModalMode, setCurrentPage } = useApp();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [birthdate, setBirthdate] = useState('2004-01-01');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Prefer not to say' | 'Other'>('Male');
@@ -34,7 +36,6 @@ export const JoinPage: React.FC = () => {
   const [emergencyPhone, setEmergencyPhone] = useState('');
 
   const [submittedId, setSubmittedId] = useState<string | null>(null);
-  const [submittedEmail, setSubmittedEmail] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,12 +43,11 @@ export const JoinPage: React.FC = () => {
 
     const birthYear = new Date(birthdate).getFullYear();
     const calculatedAge = Math.max(15, 2026 - birthYear);
-    const cleanedEmail = email.trim().toLowerCase();
 
     const created = addMember({
-      fullName: fullName.trim(),
-      email: cleanedEmail,
-      contactNumber: contactNumber.trim(),
+      fullName,
+      email,
+      contactNumber,
       birthdate,
       age: calculatedAge,
       gender,
@@ -58,10 +58,9 @@ export const JoinPage: React.FC = () => {
       profilePicture: gender === 'Female' 
         ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
         : 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
-      membershipStatus: 'Active',
+      membershipStatus: 'Pending',
       organizationPosition: 'Youth Member',
       committee: 'General Youth Volunteer',
-      gmailAccessEnabled: true,
       emergencyContact: {
         name: emergencyName || 'Family Contact',
         relationship: emergencyRel || 'Parent',
@@ -70,8 +69,6 @@ export const JoinPage: React.FC = () => {
     });
 
     setSubmittedId(created.memberId);
-    setSubmittedEmail(cleanedEmail);
-    addToast(`Registration submitted! Welcome to PAGASA Guimba, ${fullName}!`, 'success');
     try {
       confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
     } catch (_) {}
@@ -183,19 +180,14 @@ export const JoinPage: React.FC = () => {
                   Application Submitted Successfully!
                 </h3>
                 <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                  Mabuhay! Your youth membership registration has been activated with official Member ID:
+                  Mabuhay! Your youth membership registration has been recorded and assigned official Member ID:
                 </p>
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl inline-block font-mono font-bold text-blue-800 text-xl">
                   {submittedId}
                 </div>
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900 text-left max-w-md mx-auto space-y-1.5">
-                  <p className="font-bold flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Password-Free Member Portal Access</span>
-                  </p>
-                  <p className="text-emerald-800 text-[11px] leading-relaxed">
-                    You can now sign into your Member Portal using your Gmail username: <strong className="font-mono text-emerald-950">{submittedEmail ? submittedEmail.split('@')[0] : 'your_username'}</strong> or by clicking <strong>Sign in with Google</strong>.
-                  </p>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 text-left max-w-md mx-auto">
+                  <p className="font-bold mb-0.5">Status: Pending Admin Review</p>
+                  You can now log in using your registered email and access the Member Portal once activated.
                 </div>
                 <div className="pt-4 flex justify-center gap-3">
                   <button
@@ -204,13 +196,13 @@ export const JoinPage: React.FC = () => {
                       setAuthModalMode('login');
                       setIsAuthModalOpen(true);
                     }}
-                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-md shadow-blue-500/20"
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors"
                   >
                     Log In to Member Portal
                   </button>
                   <button
                     onClick={() => setCurrentPage('home')}
-                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
                   >
                     Back to Home
                   </button>
@@ -218,22 +210,9 @@ export const JoinPage: React.FC = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 font-display">
-                    Youth Membership Registration Form
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Fill in your details. You will use your Gmail address or username to sign in password-free.
-                  </p>
-                </div>
-
-                {/* Password-Free Notice */}
-                <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-2xl flex items-center gap-2.5 text-xs text-blue-900">
-                  <Mail className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                  <span className="text-[11px] leading-relaxed">
-                    <strong>Password-Free Portal:</strong> Enter your active Gmail address. You'll sign in easily using just your Gmail username.
-                  </span>
-                </div>
+                <h2 className="text-xl font-bold text-slate-900 font-display">
+                  Youth Membership Registration Form
+                </h2>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -252,7 +231,7 @@ export const JoinPage: React.FC = () => {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Gmail Address (For Portal Login) *
+                      Email Address *
                     </label>
                     <input
                       type="email"
@@ -260,12 +239,26 @@ export const JoinPage: React.FC = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="juan.delacruz@gmail.com"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Password *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Mobile / Contact No. *
@@ -279,7 +272,9 @@ export const JoinPage: React.FC = () => {
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Guimba Barangay *
@@ -294,9 +289,7 @@ export const JoinPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Birthdate *
