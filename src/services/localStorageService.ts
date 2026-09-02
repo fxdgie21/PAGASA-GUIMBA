@@ -15,6 +15,7 @@ import {
   OrganizationSettings,
   NotificationItem,
   AuditLogItem,
+  EmailLogItem,
   ThemeMode,
   ColorPalette
 } from '../types';
@@ -62,6 +63,7 @@ export const STORAGE_KEYS = {
   CERTIFICATES: 'pagasa_certificates',
   NOTIFICATIONS: 'pagasa_notifications',
   AUDIT_LOGS: 'pagasa_audit_logs',
+  EMAIL_LOGS: 'pagasa_email_logs_v4',
   VERSION: 'pagasa_storage_version'
 } as const;
 
@@ -379,6 +381,14 @@ class LocalStorageService {
 
   public saveAuditLogs(auditLogs: AuditLogItem[]): void {
     this.setItem(STORAGE_KEYS.AUDIT_LOGS, auditLogs);
+  }
+
+  public loadEmailLogs(): EmailLogItem[] {
+    return this.getItem<EmailLogItem[]>(STORAGE_KEYS.EMAIL_LOGS, []);
+  }
+
+  public saveEmailLogs(emailLogs: EmailLogItem[]): void {
+    this.setItem(STORAGE_KEYS.EMAIL_LOGS, emailLogs);
   }
 
   /* ==========================================================================
