@@ -249,6 +249,74 @@ export const INITIAL_OFFICIALS: OfficialItem[] = [
 
 export const INITIAL_MEMBERS: Member[] = [
   {
+    id: 'mem-gian',
+    memberId: 'PAGASA-2026-0001',
+    fullName: 'Gian Carlo Magat',
+    email: 'giancarlomagat19@gmail.com',
+    contactNumber: '0917-554-8920',
+    birthdate: '2004-01-01',
+    age: 22,
+    gender: 'Male',
+    address: 'Purok 1, Brgy. Ayos Lomboy, Guimba',
+    barangay: 'Ayos Lomboy',
+    educationalStatus: 'College / University',
+    occupation: 'Youth Leader & Student',
+    profilePicture: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Alex&backgroundColor=b6e3f4,c0aede,d1d4f9',
+    membershipDate: '2025-01-01',
+    membershipStatus: 'Active',
+    organizationPosition: 'President & Executive Lead',
+    committee: 'Executive Board',
+    gmailAccessEnabled: true,
+    portalPassword: 'PagasaMember2026',
+    emergencyContact: {
+      name: 'Family Contact',
+      relationship: 'Parent / Guardian',
+      contactNumber: '0917-554-8920'
+    },
+    stats: {
+      eventsJoined: 15,
+      totalAttendance: 15,
+      attendanceRate: 100,
+      volunteerHours: 64,
+      projectsParticipated: 8,
+      certificatesEarned: 6
+    }
+  },
+  {
+    id: 'mem-fxdgie',
+    memberId: 'PAGASA-2026-0002',
+    fullName: 'Gian Magat',
+    email: 'fxdgie21@gmail.com',
+    contactNumber: '0917-554-8920',
+    birthdate: '2004-01-01',
+    age: 22,
+    gender: 'Male',
+    address: 'Purok 1, Brgy. Ayos Lomboy, Guimba',
+    barangay: 'Ayos Lomboy',
+    educationalStatus: 'College / University',
+    occupation: 'Youth Member',
+    profilePicture: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Gian&backgroundColor=b6e3f4,c0aede,d1d4f9',
+    membershipDate: '2025-01-01',
+    membershipStatus: 'Active',
+    organizationPosition: 'Youth Member',
+    committee: 'General Youth Volunteer',
+    gmailAccessEnabled: true,
+    portalPassword: 'PagasaMember2026',
+    emergencyContact: {
+      name: 'Family Contact',
+      relationship: 'Parent / Guardian',
+      contactNumber: '0917-554-8920'
+    },
+    stats: {
+      eventsJoined: 12,
+      totalAttendance: 12,
+      attendanceRate: 100,
+      volunteerHours: 48,
+      projectsParticipated: 6,
+      certificatesEarned: 5
+    }
+  },
+  {
     id: 'mem-1',
     memberId: 'PAGASA-2026-0042',
     fullName: 'Juan Dela Cruz',
@@ -266,6 +334,8 @@ export const INITIAL_MEMBERS: Member[] = [
     membershipStatus: 'Active',
     organizationPosition: 'Youth Member',
     committee: 'Media & Public Relations',
+    gmailAccessEnabled: true,
+    portalPassword: 'PagasaMember2026',
     emergencyContact: {
       name: 'Elena Dela Cruz',
       relationship: 'Mother',

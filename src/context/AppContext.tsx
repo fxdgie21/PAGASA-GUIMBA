@@ -726,7 +726,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Member Authentication via Google
-      const matchedMember = members.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
+      let matchedMember = members.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
+      if (!matchedMember) {
+        const fallbackMem = INITIAL_MEMBERS.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
+        if (fallbackMem) {
+          matchedMember = fallbackMem;
+          setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
+        }
+      }
       if (!matchedMember) {
         await signOutFirebase().catch(() => {});
         showToast(
@@ -810,10 +817,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // 2. Member Portal Login
-    const matchedMember = members.find(m => 
+    let matchedMember = members.find(m => 
       (m.email && m.email.toLowerCase().trim() === inputLower) || 
-      (m.memberId && m.memberId.toLowerCase().trim() === inputLower)
+      (m.memberId && m.memberId.toLowerCase().trim() === inputLower) ||
+      (m.fullName && m.fullName.toLowerCase().trim() === inputLower)
     );
+
+    // Fallback to INITIAL_MEMBERS if not present in current state
+    if (!matchedMember) {
+      const fallbackMem = INITIAL_MEMBERS.find(m =>
+        (m.email && m.email.toLowerCase().trim() === inputLower) ||
+        (m.memberId && m.memberId.toLowerCase().trim() === inputLower) ||
+        (m.fullName && m.fullName.toLowerCase().trim() === inputLower)
+      );
+      if (fallbackMem) {
+        matchedMember = fallbackMem;
+        setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
+      }
+    }
 
     if (!matchedMember) {
       showToast(
@@ -835,9 +856,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    // Check specific password assigned by admin
-    const assignedPassword = matchedMember.portalPassword || 'PagasaMember2026';
-    if (!pwd || (pwd !== assignedPassword && pwd !== 'PagasaMember2026' && pwd !== 'pagasa2026')) {
+    // Check specific password assigned by admin (case-insensitive & trimmed fallback)
+    const assignedPassword = (matchedMember.portalPassword || 'PagasaMember2026').trim();
+    const isValidPassword = 
+      pwd === assignedPassword ||
+      pwd.toLowerCase() === assignedPassword.toLowerCase() ||
+      pwd === 'PagasaMember2026' ||
+      pwd.toLowerCase() === 'pagasamember2026' ||
+      pwd === 'pagasa2026' ||
+      pwd.toLowerCase() === 'pagasa2026';
+
+    if (!pwd || !isValidPassword) {
       showToast('error', 'Incorrect Portal Password', 'The password entered does not match the specific portal password assigned by the admin.');
       logAuditEvent('Failed Password Login', 'Members', `Incorrect password attempt for member: ${matchedMember.fullName} (${matchedMember.email})`);
       return false;
@@ -894,10 +923,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // Member Attempt
-    const matchedMember = members.find(m => 
+    let matchedMember = members.find(m => 
       (m.email && m.email.toLowerCase().trim() === inputLower) || 
-      (m.memberId && m.memberId.toLowerCase().trim() === inputLower)
+      (m.memberId && m.memberId.toLowerCase().trim() === inputLower) ||
+      (m.fullName && m.fullName.toLowerCase().trim() === inputLower)
     );
+
+    if (!matchedMember) {
+      const fallbackMem = INITIAL_MEMBERS.find(m =>
+        (m.email && m.email.toLowerCase().trim() === inputLower) ||
+        (m.memberId && m.memberId.toLowerCase().trim() === inputLower) ||
+        (m.fullName && m.fullName.toLowerCase().trim() === inputLower)
+      );
+      if (fallbackMem) {
+        matchedMember = fallbackMem;
+        setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
+      }
+    }
 
     if (!matchedMember) {
       showToast(
@@ -927,8 +969,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    const assignedPassword = matchedMember.portalPassword || 'PagasaMember2026';
-    if (pwd !== assignedPassword && pwd !== 'PagasaMember2026' && pwd !== 'pagasa2026') {
+    const assignedPassword = (matchedMember.portalPassword || 'PagasaMember2026').trim();
+    const isValidPassword = 
+      pwd === assignedPassword ||
+      pwd.toLowerCase() === assignedPassword.toLowerCase() ||
+      pwd === 'PagasaMember2026' ||
+      pwd.toLowerCase() === 'pagasamember2026' ||
+      pwd === 'pagasa2026' ||
+      pwd.toLowerCase() === 'pagasa2026';
+
+    if (!isValidPassword) {
       showToast('error', 'Incorrect Password', 'The password entered does not match the portal password assigned by the admin.');
       return {
         success: false,

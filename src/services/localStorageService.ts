@@ -254,7 +254,23 @@ class LocalStorageService {
   }
 
   public loadMembers(): Member[] {
-    return this.getItem<Member[]>(STORAGE_KEYS.MEMBERS, INITIAL_MEMBERS);
+    const stored = this.getItem<Member[]>(STORAGE_KEYS.MEMBERS, INITIAL_MEMBERS);
+    if (!stored || !Array.isArray(stored) || stored.length === 0) {
+      return INITIAL_MEMBERS;
+    }
+    // Merge any missing initial members so updates to initial data are never lost
+    const merged = [...stored];
+    for (const initMem of INITIAL_MEMBERS) {
+      const exists = merged.some(m => 
+        (m.id && m.id === initMem.id) || 
+        (m.email && initMem.email && m.email.toLowerCase().trim() === initMem.email.toLowerCase().trim()) ||
+        (m.memberId && initMem.memberId && m.memberId.toLowerCase().trim() === initMem.memberId.toLowerCase().trim())
+      );
+      if (!exists) {
+        merged.unshift(initMem);
+      }
+    }
+    return merged;
   }
 
   public saveMembers(members: Member[]): void {
