@@ -395,10 +395,32 @@ export const AdminMembers: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-slate-400">
-                    <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                    <p className="font-semibold text-slate-600 text-sm">No members found</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Try searching with a different name or Gmail address, or add a new user.</p>
+                  <td colSpan={6} className="text-center py-12 px-4 text-slate-400">
+                    <div className="max-w-sm mx-auto space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center mx-auto">
+                        <Users className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">
+                          {members.length === 0 ? 'No Members in Directory' : 'No matching members found'}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                          {members.length === 0 
+                            ? 'The member directory is currently empty. Click the button below to register a new member with their Gmail.' 
+                            : 'Try adjusting your search criteria or clearing filters.'}
+                        </p>
+                      </div>
+                      {members.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={handleOpenCreate}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Add New Member</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (

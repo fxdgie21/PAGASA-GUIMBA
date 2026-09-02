@@ -49,11 +49,11 @@ export const STORAGE_KEYS = {
   
   // Organization Domain State
   SETTINGS: 'pagasa_settings',
-  MEMBERS: 'pagasa_members',
+  MEMBERS: 'pagasa_members_v4',
   EVENTS: 'pagasa_events',
   REGISTRATIONS: 'pagasa_registrations',
   ATTENDANCE_SESSIONS: 'pagasa_sessions',
-  ATTENDANCE_RECORDS: 'pagasa_attendance_records',
+  ATTENDANCE_RECORDS: 'pagasa_attendance_records_v4',
   PROJECTS: 'pagasa_projects',
   ACTIVITIES: 'pagasa_activities',
   ANNOUNCEMENTS: 'pagasa_announcements',
@@ -254,23 +254,11 @@ class LocalStorageService {
   }
 
   public loadMembers(): Member[] {
-    const stored = this.getItem<Member[]>(STORAGE_KEYS.MEMBERS, INITIAL_MEMBERS);
-    if (!stored || !Array.isArray(stored) || stored.length === 0) {
-      return INITIAL_MEMBERS;
+    const stored = this.getItem<Member[]>(STORAGE_KEYS.MEMBERS, []);
+    if (!stored || !Array.isArray(stored)) {
+      return [];
     }
-    // Merge any missing initial members so updates to initial data are never lost
-    const merged = [...stored];
-    for (const initMem of INITIAL_MEMBERS) {
-      const exists = merged.some(m => 
-        (m.id && m.id === initMem.id) || 
-        (m.email && initMem.email && m.email.toLowerCase().trim() === initMem.email.toLowerCase().trim()) ||
-        (m.memberId && initMem.memberId && m.memberId.toLowerCase().trim() === initMem.memberId.toLowerCase().trim())
-      );
-      if (!exists) {
-        merged.unshift(initMem);
-      }
-    }
-    return merged;
+    return stored;
   }
 
   public saveMembers(members: Member[]): void {

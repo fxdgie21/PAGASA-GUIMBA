@@ -383,48 +383,39 @@ export const AuthModal: React.FC = () => {
                         <span>Password-Free Member Login</span>
                       </div>
                       <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                        Gmail Username Only
+                        Gmail Username
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-600 leading-tight">
-                      Simply enter your registered Gmail address, Gmail username (e.g. <code>giancarlomagat19</code>), or 1-click Google sign in. No password required.
+                      Enter your registered Gmail address or username (e.g. <code>username</code> from <code>username@gmail.com</code>).
                     </p>
-                    <div className="pt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] text-slate-500 font-semibold">Quick Sign In:</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLoginEmail('giancarlomagat19');
-                          loginWithSupabase('giancarlomagat19', '', 'MEMBER');
-                          setIsAuthModalOpen(false);
-                        }}
-                        className="text-[10px] px-2 py-0.5 bg-white hover:bg-blue-100 text-blue-800 font-semibold rounded-md border border-blue-200 transition-colors cursor-pointer"
-                      >
-                        Gian Carlo Magat
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLoginEmail('fxdgie21');
-                          loginWithSupabase('fxdgie21', '', 'MEMBER');
-                          setIsAuthModalOpen(false);
-                        }}
-                        className="text-[10px] px-2 py-0.5 bg-white hover:bg-blue-100 text-blue-800 font-semibold rounded-md border border-blue-200 transition-colors cursor-pointer"
-                      >
-                        Gian Magat
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLoginEmail('juan.delacruz');
-                          loginWithSupabase('juan.delacruz', '', 'MEMBER');
-                          setIsAuthModalOpen(false);
-                        }}
-                        className="text-[10px] px-2 py-0.5 bg-white hover:bg-blue-100 text-blue-800 font-semibold rounded-md border border-blue-200 transition-colors cursor-pointer"
-                      >
-                        Juan Dela Cruz
-                      </button>
-                    </div>
+                    {members.length > 0 ? (
+                      <div className="pt-1 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] text-slate-500 font-semibold">Registered Members:</span>
+                        {members.slice(0, 3).map((m) => {
+                          const username = m.email.split('@')[0];
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => {
+                                setLoginEmail(username);
+                                loginWithSupabase(username, '', 'MEMBER');
+                                setIsAuthModalOpen(false);
+                              }}
+                              className="text-[10px] px-2 py-0.5 bg-white hover:bg-blue-100 text-blue-800 font-semibold rounded-md border border-blue-200 transition-colors cursor-pointer"
+                              title={`Sign in as ${m.fullName}`}
+                            >
+                              {m.fullName}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="pt-1 text-[11px] text-slate-500 italic bg-white/60 p-2 rounded-xl border border-blue-100/80">
+                        No members registered yet. Administrators can add youth members in the Admin Panel or members can register via Join Organization.
+                      </div>
+                    )}
                   </div>
                 )}
 

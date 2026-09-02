@@ -728,18 +728,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Member Authentication via Google
       let matchedMember = members.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
       if (!matchedMember) {
-        const fallbackMem = INITIAL_MEMBERS.find(m => (m.email || '').toLowerCase().trim() === trimmedEmail);
-        if (fallbackMem) {
-          matchedMember = fallbackMem;
-          setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
-        }
-      }
-      if (!matchedMember) {
         await signOutFirebase().catch(() => {});
         showToast(
           'error',
           'Access Denied: Unregistered Google Account',
-          `The Google account (${email}) is not in the PAGASA Member Directory. An administrator must first register your Gmail and assign a password.`
+          `The Google account (${email}) is not in the PAGASA Member Directory. Please join the organization or ask an administrator to register your Gmail.`
         );
         logAuditEvent('Failed Google Login', 'Members', `Unauthorized Google account login attempt: ${email}`);
         return false;
@@ -836,15 +829,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let matchedMember = findMemberByInput(members, input);
 
-    // Fallback to INITIAL_MEMBERS if not present in current state
-    if (!matchedMember) {
-      const fallbackMem = findMemberByInput(INITIAL_MEMBERS, input);
-      if (fallbackMem) {
-        matchedMember = fallbackMem;
-        setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
-      }
-    }
-
     if (!matchedMember) {
       showToast(
         'error',
@@ -934,14 +918,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     let matchedMember = findMemberByInput(members, input);
-
-    if (!matchedMember) {
-      const fallbackMem = findMemberByInput(INITIAL_MEMBERS, input);
-      if (fallbackMem) {
-        matchedMember = fallbackMem;
-        setMembers(prev => [fallbackMem, ...prev.filter(x => x.id !== fallbackMem.id)]);
-      }
-    }
 
     if (!matchedMember) {
       showToast(
