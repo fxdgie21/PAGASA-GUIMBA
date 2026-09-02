@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { GUIMBA_BARANGAYS } from '../../data/mockData';
 import { PagasaLogo } from './PagasaLogo';
-import { X, Lock, Mail, User, Phone, Calendar, Shield, ArrowRight, CheckCircle2, Loader2, Sparkles, KeyRound, Check, HelpCircle } from 'lucide-react';
+import { X, Lock, Mail, User, Phone, Calendar, Shield, ArrowRight, CheckCircle2, Loader2, Sparkles, KeyRound, Check, HelpCircle, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 
@@ -30,6 +30,7 @@ export const AuthModal: React.FC = () => {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginFullName, setLoginFullName] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
   // Register form state
@@ -64,14 +65,18 @@ export const AuthModal: React.FC = () => {
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginEmail.trim()) return;
+    const identifier = loginEmail.trim();
+    const password = loginPassword.trim();
+
+    if (!identifier) return;
 
     setIsSubmitting(true);
     try {
       const targetRole = authModalMode === 'admin-login' ? 'SUPER_ADMIN' : 'MEMBER';
-      const res = await loginWithSupabase(loginEmail.trim(), loginPassword || 'pagasa2026', targetRole, loginFullName);
+      const res = await loginWithSupabase(identifier, password, targetRole, loginFullName);
       if (res.success) {
         setIsAuthModalOpen(false);
+        setLoginPassword('');
       }
     } finally {
       setIsSubmitting(false);
@@ -454,13 +459,21 @@ export const AuthModal: React.FC = () => {
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
-                      type="password"
+                      type={showLoginPassword ? "text" : "password"}
                       required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder={authModalMode === 'admin-login' ? 'TayoAngPagasa2026' : 'Enter assigned password'}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400"
+                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400 font-mono"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                      title={showLoginPassword ? "Hide password" : "Show password"}
+                    >
+                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
 

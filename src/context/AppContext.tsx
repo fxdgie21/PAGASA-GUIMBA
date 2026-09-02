@@ -656,27 +656,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Switch Role
   const switchRole = (role: UserRole, userPayload?: User) => {
+    // Prevent unauthorized role elevation to Administrator
+    if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+      const isAuthorized = userPayload && 
+        (userPayload.role === 'SUPER_ADMIN' || userPayload.role === 'ADMIN') &&
+        (userPayload.email === 'admin@pagasaguimba.org' || userPayload.id === 'usr-admin-1');
+
+      if (!isAuthorized) {
+        showToast('error', 'Admin Access Denied', 'Administrator access requires authentication with Username: PAGASA_ADMIN and Password: TayoAngPagasa2026.');
+        return;
+      }
+    }
+
     setCurrentRole(role);
     if (userPayload) {
       setCurrentUser(userPayload);
       storageService.saveUserSession(userPayload, role);
     } else {
-      let targetUser: User | null = null;
-      if (role === 'SUPER_ADMIN') {
-        targetUser = INITIAL_USERS[0];
-      } else if (role === 'ADMIN') {
-        targetUser = { ...INITIAL_USERS[0], role: 'ADMIN' };
-      } else if (role === 'MEMBER') {
-        targetUser = INITIAL_USERS[1];
+      if (role === 'GUEST') {
+        setCurrentUser(null);
+        storageService.saveUserSession(null, 'GUEST');
       }
-      setCurrentUser(targetUser);
-      storageService.saveUserSession(targetUser, role);
     }
     
     // Auto navigate to relevant dashboard
     if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
       setCurrentPage('admin-dashboard');
-      showToast('success', 'Role Switched', `Logged in as Administrator (${role})`);
+      showToast('success', 'Admin MIS Access', `Authenticated as Administrator (${role})`);
     } else if (role === 'MEMBER') {
       setCurrentPage('member-dashboard');
       showToast('success', 'Welcome Back!', `Logged in as Member (${userPayload?.name || 'Youth Member'})`);
@@ -779,10 +785,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (isAdminMode) {
       const isValidAdminUsername = (input === 'PAGASA_ADMIN' || inputLower === 'pagasa_admin' || inputLower === 'admin@pagasaguimba.org');
-      const isValidAdminPassword = (pwd === 'TayoAngPagasa2026' || !pwd); // default if called programmatically with targetRole
+      const isValidAdminPassword = (pwd === 'TayoAngPagasa2026');
 
-      if (!isValidAdminUsername || (pwd && pwd !== 'TayoAngPagasa2026')) {
-        showToast('error', 'Admin Access Denied', 'Invalid Administrator Credentials. Correct format: Username: PAGASA_ADMIN, Password: TayoAngPagasa2026.');
+      if (!isValidAdminUsername || !isValidAdminPassword) {
+        showToast('error', 'Admin Access Denied', 'Invalid Administrator Credentials. Correct credentials required: Username: PAGASA_ADMIN, Password: TayoAngPagasa2026.');
         logAuditEvent('Failed Admin Login', 'Settings', `Failed admin login attempt with identifier: "${input}"`);
         return false;
       }
@@ -831,7 +837,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Check specific password assigned by admin
     const assignedPassword = matchedMember.portalPassword || 'PagasaMember2026';
-    if (pwd && pwd !== assignedPassword && pwd !== 'PagasaMember2026' && pwd !== 'pagasa2026') {
+    if (!pwd || (pwd !== assignedPassword && pwd !== 'PagasaMember2026' && pwd !== 'pagasa2026')) {
       showToast('error', 'Incorrect Portal Password', 'The password entered does not match the specific portal password assigned by the admin.');
       logAuditEvent('Failed Password Login', 'Members', `Incorrect password attempt for member: ${matchedMember.fullName} (${matchedMember.email})`);
       return false;
@@ -872,11 +878,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (isAdminMode) {
       const isValidAdminUsername = (input === 'PAGASA_ADMIN' || inputLower === 'pagasa_admin' || inputLower === 'admin@pagasaguimba.org');
-      const isValidAdminPassword = pwd === 'TayoAngPagasa2026';
+      const isValidAdminPassword = (pwd === 'TayoAngPagasa2026');
 
       if (!isValidAdminUsername || !isValidAdminPassword) {
-        showToast('error', 'Admin Access Denied', 'Invalid credentials. Access restricted to Admin Account Username: PAGASA_ADMIN, Password: TayoAngPagasa2026.');
-        logAuditEvent('Failed Admin Login', 'Settings', `Failed admin login for username: "${input}"`);
+        showToast('error', 'Admin Access Denied', 'Invalid credentials. Access strictly restricted to Admin Account Username: PAGASA_ADMIN, Password: TayoAngPagasa2026.');
+        logAuditEvent('Failed Admin Login', 'Settings', `Failed admin login attempt for username: "${input}"`);
         return {
           success: false,
           message: 'Invalid Administrator Credentials. Correct format: Username: PAGASA_ADMIN, Password: TayoAngPagasa2026.'

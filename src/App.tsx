@@ -68,7 +68,12 @@ const PageRenderer: React.FC = () => {
 
   // 1. Admin Portal Layout & Pages (Protected: Super Admin & Admin only)
   if (isAdminRoute) {
-    if (currentRole !== 'SUPER_ADMIN' && currentRole !== 'ADMIN') {
+    const isAuthorizedAdmin = (currentRole === 'SUPER_ADMIN' || currentRole === 'ADMIN') &&
+      currentUser &&
+      (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN') &&
+      (currentUser.email === 'admin@pagasaguimba.org' || currentUser.id === 'usr-admin-1');
+
+    if (!isAuthorizedAdmin) {
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
           <Navbar />
@@ -83,7 +88,7 @@ const PageRenderer: React.FC = () => {
                 </span>
                 <h2 className="text-2xl font-display font-bold text-slate-900">Administrator Access Required</h2>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  This section is restricted to authorized PAGASA Guimba administrators, municipal officers, and system managers.
+                  Access strictly restricted to administrator account. Credentials required: Username: <strong className="text-slate-900">PAGASA_ADMIN</strong>, Password: <strong className="text-slate-900">TayoAngPagasa2026</strong>.
                 </p>
               </div>
               <div className="pt-2 flex flex-col gap-2.5">
